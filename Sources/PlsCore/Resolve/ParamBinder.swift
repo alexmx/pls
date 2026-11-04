@@ -7,6 +7,8 @@ public struct BoundValue: Sendable, Equatable {
         case given
         /// Typed at a prompt.
         case prompted = "entered"
+        /// Chosen in the run `pls again` repeats.
+        case repeated = "last run"
     }
 
     public let value: String
@@ -106,6 +108,18 @@ public enum ParamBinder {
             } else if case let .defaultValue(value) = param.requirement {
                 try binding.supply(value, for: param, source: .defaultValue)
             }
+        }
+        return binding
+    }
+
+    /// A binding that repeats `entry` against the automation as it is now (SPEC §8): values chosen in that run are
+    /// replayed, defaults come from the current automation, params it no longer has are dropped, and required params
+    /// it has gained are left missing for the caller to ask for.
+    public static func replay(_ entry: HistoryEntry, for automation: Automation) throws(BindingError) -> Binding {
+        var binding = try bind(automation, arguments: [])
+        for param in automation.params where entry.chosen.contains(param.name) {
+            guard let value = entry.params[param.name] else { continue }
+            try binding.supply(value, for: param, source: .repeated)
         }
         return binding
     }

@@ -10,7 +10,9 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, d
     if !binding.missing.isEmpty, !dryRun {
         guard Prompt.isInteractive else {
             let names = binding.missing.map { "--\($0.name)" }.joined(separator: ", ")
-            printError("pls: missing \(names); give it on the command line (there's no terminal to ask in)")
+            printError(trigger == .again
+                ? "pls: \(automation.id) now needs \(names), which the last run didn't have; use `pls run \(automation.id)`"
+                : "pls: missing \(names); give it on the command line (there's no terminal to ask in)")
             throw Exit.usage
         }
         try Prompt.fillMissing(&binding)

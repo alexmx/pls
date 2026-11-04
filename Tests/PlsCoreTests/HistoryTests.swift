@@ -88,3 +88,48 @@ struct HistoryTests {
         #expect(HistoryStore.defaultFile(environment: [:]).path.hasSuffix("/.local/state/pls/history.jsonl"))
     }
 }
+
+@Suite(.timeLimit(.minutes(1)))
+struct ReplayTests {
+    @Test func replaysChosenValuesAndRecomputesDefaults() throws {
+        let automation = try makeAutomation(
+            "compress", params: "folder: path = ~/Desktop", "quality: int(1...100) = 80"
+        )
+        // Last run used folder=~/Old as a default; the default has since changed to ~/Desktop.
+        let entry = makeEntry("compress", params: ["folder": "~/Old", "quality": "60"], chosen: ["quality"])
+
+        let binding = try ParamBinder.replay(entry, for: automation)
+
+        #expect(binding.values == [
+            "folder": BoundValue("~/Desktop", .defaultValue),
+            "quality": BoundValue("60", .repeated)
+        ])
+    }
+
+    @Test func dropsParamsTheAutomationNoLongerHas() throws {
+        let automation = try makeAutomation("a", params: "kept: string")
+        let entry = makeEntry("a", params: ["kept": "x", "gone": "y"], chosen: ["gone", "kept"])
+        #expect(try ParamBinder.replay(entry, for: automation).values == ["kept": BoundValue("x", .repeated)])
+    }
+
+    @Test func leavesNewRequiredParamsMissing() throws {
+        let automation = try makeAutomation("a", params: "old: string", "new: int")
+        let binding = try ParamBinder.replay(makeEntry("a", params: ["old": "x"], chosen: ["old"]), for: automation)
+        #expect(binding.missing.map(\.name) == ["new"])
+    }
+
+    @Test func storedValueThatNoLongerFitsIsAnError() throws {
+        let automation = try makeAutomation("a", params: "quality: int(1...50)")
+        let entry = makeEntry("a", params: ["quality": "80"], chosen: ["quality"])
+        #expect(throws: BindingError("quality: 80 is outside 1...50")) {
+            try ParamBinder.replay(entry, for: automation)
+        }
+    }
+
+    @Test func repeatedValuesStayChosenInTheNextEntry() throws {
+        let automation = try makeAutomation("a", params: "port: int")
+        let binding = try ParamBinder.replay(makeEntry("a", params: ["port": "1"], chosen: ["port"]), for: automation)
+        let next = HistoryEntry(binding, via: .again, exit: 0, seconds: 0, at: Date())
+        #expect(next.chosen == ["port"])
+    }
+}
