@@ -15,6 +15,7 @@ enum Prompt {
             while true {
                 guard let answer = ask(label + ": ") else { throw Exit.cancelled }
                 if answer.isEmpty {
+                    printError("  (required)")
                     continue
                 }
                 do {

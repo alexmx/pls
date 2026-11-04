@@ -1,11 +1,12 @@
 /// A param's final value and where it came from (shown by `--dry-run` and, later, the review step).
 public struct BoundValue: Sendable, Equatable {
+    /// The raw value is the label the plan display shows.
     public enum Source: String, Sendable, Equatable {
         case defaultValue = "default"
         /// On the command line.
         case given
         /// Typed at a prompt.
-        case prompted
+        case prompted = "entered"
     }
 
     public let value: String

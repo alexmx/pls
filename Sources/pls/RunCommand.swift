@@ -8,7 +8,7 @@ struct RunCommand: ParsableCommand {
         abstract: "Run an automation.",
         discussion: """
         Give param values in declared order, or by name: `pls run compress-images ~/Pictures --quality 60`.
-        Bool params also take --name / --no-name. Use -- before values that start with --.
+        Bool params also take --name / --no-name. Put -- before values that start with -.
         """
     )
 

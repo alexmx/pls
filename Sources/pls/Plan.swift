@@ -8,17 +8,12 @@ func printPlan(_ binding: Binding, write: (String) -> Void = { print($0) }) {
         guard let bound = binding.values[param.name] else {
             return [param.name, param.requirement == .required ? "(missing)" : "(empty)", ""]
         }
-        let source = switch bound.source {
-        case .defaultValue: "default"
-        case .given: "given"
-        case .prompted: "entered"
-        }
-        return [param.name, bound.value.isEmpty ? "\"\"" : bound.value, source]
+        return [param.name, bound.value.isEmpty ? "\"\"" : bound.value, bound.source.rawValue]
     }
     let widths = (0..<2).map { column in rows.map { $0[column].count }.max() ?? 0 }
     for row in rows {
-        write("    " + [row[0].padded(to: widths[0]), row[1].padded(to: widths[1]), row[2]].joined(separator: "  ")
-            .trimmingCharacters(in: .whitespaces))
+        let line = [row[0].padded(to: widths[0]), row[1].padded(to: widths[1]), row[2]].joined(separator: "  ")
+        write("    " + line.trimmingCharacters(in: .whitespaces))
     }
 }
 
