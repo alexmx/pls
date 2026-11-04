@@ -123,9 +123,14 @@ params:
     type: enum
     options: [png, jpg, heic]
     default: png
+  - name: suffix
+    type: string
+    optional: true              # may be left empty; the manifest form of `string?`
 ```
 
-`.scpt` entries are allowed here (kind `applescript`).
+Param keys: `name` and `type` (required), `default`, `optional`, `description`, `min` + `max` (int/number, both or
+neither), `options` (enum). A param can't be both `optional` and have a `default`. `confirm` and `optional` accept only
+`true` / `false` (not YAML's `yes` / `on`). `.scpt` entries are allowed here (kind `applescript`).
 
 ### 3.3 Shortcuts (opt-in)
 
@@ -164,7 +169,8 @@ Only Shortcuts listed in `shortcuts.yaml` are part of the library. Manage the fi
 
 - `<name>`: lowercase letters, digits and `_`.
 - No default → **required**. A `?` after the type → optional with no default (e.g. `string?`).
-- The default is everything between `=` and ` -- `, trimmed; surrounding quotes are removed.
+- The default is everything between `=` and ` -- `, trimmed; surrounding quotes are removed. A default can't
+  contain ` -- ` (even quoted); use the folder form for that.
 - Reserved names: `yes`, `dry_run`, `help` (CLI flags) and `id`, `home`, `automation_dir` (their `PLS_` variables are set by pls).
 
 ### 4.3 Binding order
@@ -191,7 +197,7 @@ Environment for all kinds:
 ## 6. CLI
 
 ```
-pls list [--json]                      # id, name, kind, description
+pls list [--json]                      # id, kind, description (--json: everything)
 pls show <id>                          # full details, params, source path
 pls run <id> [values…] [--<param> <value>…] [--yes] [--dry-run]
 pls <id> [values…]                     # same as run
@@ -272,6 +278,7 @@ Errors:
 - enabled Shortcuts that no longer exist
 
 Warnings:
+- the library folder doesn't exist (e.g. a mistyped `PLS_HOME`); unreadable is an error
 - unknown header or manifest keys
 - ids that clash with subcommands
 - missing `description` (not offered to the model)

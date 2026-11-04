@@ -1,6 +1,6 @@
 import Foundation
 
-public enum AutomationKind: String, Sendable, Equatable, Codable {
+public enum AutomationKind: String, Sendable, Equatable {
     case shell
     case applescript
 }
