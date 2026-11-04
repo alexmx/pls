@@ -154,6 +154,25 @@ struct RunTests {
         #expect(output == "one|two words")
     }
 
+    /// A script must stay in pls's process group: that's the terminal's foreground group, so Ctrl-C reaches the
+    /// script and it can read from the terminal (a background group gets stopped by SIGTTIN).
+    @Test func scriptStaysInTheCallersProcessGroup() throws {
+        let home = try TempHome()
+        try home.write("a.sh", "#!/bin/zsh\nps -o pgid= -p $$ | tr -d ' ' > \"$OUT\"\n", executable: true)
+        let (status, output) = try run(home, "a.sh")
+        #expect(status == 0)
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == String(getpgrp()))
+    }
+
+    /// pls ignores Ctrl-C while a script runs; the script must still get the default behavior and stop.
+    @Test func scriptGetsDefaultInterruptHandlingWhilePlsIgnoresIt() throws {
+        let home = try TempHome()
+        try home.write("a.sh", "#!/bin/zsh\nkill -INT $$\nsleep 1\nexit 0\n", executable: true)
+        let previous = signal(SIGINT, SIG_IGN)
+        defer { signal(SIGINT, previous) }
+        #expect(try run(home, "a.sh").0 == 128 + SIGINT)
+    }
+
     @Test func missingProgramIsALaunchError() throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/nonexistent/interpreter\n")

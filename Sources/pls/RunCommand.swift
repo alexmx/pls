@@ -57,6 +57,10 @@ struct RunCommand: ParsableCommand {
             return
         }
 
+        // From here the script owns the terminal: Ctrl-C goes to it (Runner resets it to the default there), and pls
+        // ignores it so it can wait and exit with the script's status. Prompts above still quit on Ctrl-C.
+        signal(SIGINT, SIG_IGN)
+        signal(SIGQUIT, SIG_IGN)
         let status: Int32
         do {
             status = try Runner.run(invocation)
