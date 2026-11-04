@@ -105,7 +105,7 @@ public enum ParamBinder {
         for param in automation.params {
             if let value = named[param.name] {
                 try binding.supply(value, for: param, source: .given)
-            } else if case let .defaultValue(value) = param.requirement {
+            } else if let value = param.defaultValue {
                 try binding.supply(value, for: param, source: .defaultValue)
             }
         }

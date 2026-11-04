@@ -30,7 +30,7 @@ enum Prompt {
 
     /// Shows the plan and asks "Run? [Y/n]". Returns false if the answer is no.
     static func confirm(_ binding: Binding) -> Bool {
-        printPlan(binding, write: printError)
+        planLines(binding).forEach(printError)
         while true {
             switch ask("  Run? [Y/n] ")?.lowercased() {
             case nil, "n", "no": return false

@@ -26,16 +26,13 @@ struct HistoryCommand: ParsableCommand {
             [
                 Self.time(entry.at),
                 entry.id + (entry.via == .again ? " (again)" : ""),
-                entry.chosen.map { "\($0)=\(Self.display(entry.params[$0] ?? ""))" }.joined(separator: " "),
+                entry.chosenValues.sorted { $0.key < $1.key }.map { "\($0.key)=\(Self.display($0.value))" }
+                    .joined(separator: " "),
                 entry.exit == 0 ? "ok" : "exit \(entry.exit)",
                 Self.duration(entry.seconds)
             ]
         }
-        let widths = (0..<4).map { column in rows.map { $0[column].count }.max() ?? 0 }
-        for row in rows {
-            let line = (0..<4).map { row[$0].padded(to: widths[$0]) } + [row[4]]
-            print(line.joined(separator: "  "))
-        }
+        table(rows).forEach { print($0) }
     }
 
     /// The time today ("14:05" or "2:05 PM", following the system's setting), plus the day before that.

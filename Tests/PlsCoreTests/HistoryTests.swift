@@ -2,17 +2,6 @@ import Foundation
 @testable import PlsCore
 import Testing
 
-func makeEntry(
-    _ id: String,
-    params: [String: String] = [:],
-    chosen: [String] = [],
-    via: HistoryEntry.Trigger = .run,
-    exit: Int32 = 0,
-    at: Date = Date(timeIntervalSince1970: 1_800_000_000)
-) -> HistoryEntry {
-    HistoryEntry(at: at, id: id, params: params, chosen: chosen, via: via, exit: exit, seconds: 0.123)
-}
-
 @Suite(.timeLimit(.minutes(1)))
 struct HistoryTests {
     @Test func appendsAndReadsBackNewestFirst() throws {
@@ -175,5 +164,47 @@ struct ReplayTests {
         let binding = try ParamBinder.replay(["port": "1"], for: automation)
         let next = HistoryEntry(binding, via: .again, exit: 0, seconds: 0, at: Date())
         #expect(next.chosen == ["port"])
+    }
+
+    // MARK: replaying the last run
+
+    private func library(_ home: TempHome, _ scripts: [String: String]) throws -> Library {
+        for (file, content) in scripts {
+            try home.write(file, content)
+        }
+        return Library.load(home: home.url)
+    }
+
+    @Test func replayLastRepeatsTheNewestRun() throws {
+        let home = try TempHome()
+        let store = HistoryStore(file: home.url.appending(path: "history.jsonl"))
+        try store.append(makeEntry("greet", params: ["name": "Old"], chosen: ["name"]))
+        try store.append(makeEntry("greet", params: ["name": "Ana"], chosen: ["name"]))
+        let library = try library(home, ["greet.sh": "# @pls.param name: string\n"])
+
+        #expect(try store.replayLast(in: library).values == ["name": BoundValue("Ana", .repeated)])
+    }
+
+    @Test func replayLastFailures() throws {
+        let home = try TempHome()
+        let store = HistoryStore(file: home.url.appending(path: "history.jsonl"))
+        let library = try library(home, [
+            "small.sh": "# @pls.param n: int(1...5)\n",
+            "broken.sh": "# @pls.param n: nope\n"
+        ])
+
+        #expect(throws: ReplayError.noHistory) { try store.replayLast(in: library) }
+        try store.append(makeEntry("deleted"))
+        #expect(throws: ReplayError.automationGone(id: "deleted", hasProblems: false)) {
+            try store.replayLast(in: library)
+        }
+        try store.append(makeEntry("broken"))
+        #expect(throws: ReplayError.automationGone(id: "broken", hasProblems: true)) {
+            try store.replayLast(in: library)
+        }
+        try store.append(makeEntry("small", params: ["n": "9"], chosen: ["n"]))
+        #expect(throws: ReplayError.valueNoLongerFits(id: "small", BindingError("n: 9 is outside 1...5"))) {
+            try store.replayLast(in: library)
+        }
     }
 }

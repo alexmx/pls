@@ -135,3 +135,27 @@ public struct HistoryStore: Sendable {
         return decoder
     }()
 }
+
+/// Why the last run can't be repeated.
+public enum ReplayError: Error, Equatable {
+    case noHistory
+    /// The automation isn't in the library; `hasProblems` when it's there but has errors that keep it out.
+    case automationGone(id: String, hasProblems: Bool)
+    /// A value chosen last time doesn't fit the automation as it is now.
+    case valueNoLongerFits(id: String, BindingError)
+}
+
+extension HistoryStore {
+    /// A binding that repeats the newest run against `library` as it is now (SPEC §8).
+    public func replayLast(in library: Library) throws(ReplayError) -> Binding {
+        guard let last = recent(1).first else { throw .noHistory }
+        guard let automation = library.automation(id: last.id) else {
+            throw .automationGone(id: last.id, hasProblems: library.leftOutIDs.contains(last.id))
+        }
+        do {
+            return try ParamBinder.replay(last.chosenValues, for: automation)
+        } catch {
+            throw .valueNoLongerFits(id: last.id, error)
+        }
+    }
+}

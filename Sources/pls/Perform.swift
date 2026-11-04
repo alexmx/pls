@@ -3,32 +3,45 @@ import Foundation
 import PlsCore
 
 /// What `pls run` and `pls again` share once they have a binding: ask for what's missing, confirm if the
-/// automation wants it, then either preview (--dry-run) or run and record the run in history.
+/// automation wants it, then either preview (--dry-run) or run it (which records it in history).
 func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, dryRun: Bool) throws {
     var binding = binding
     let automation = binding.automation
-    if !binding.missing.isEmpty, !dryRun {
-        guard Prompt.isInteractive else {
+    let asksFirst = automation.confirm && !yes && !dryRun
+
+    // Without a terminal nothing can be asked: fail before announcing anything.
+    if !dryRun, !Prompt.isInteractive {
+        if !binding.missing.isEmpty {
             let names = binding.missing.map { "--\($0.name)" }.joined(separator: ", ")
-            printError("pls: missing \(names); give it on the command line (there's no terminal to ask in)")
+            printError(trigger == .again
+                ? "pls: \(automation.id) now needs \(names), which the last run didn't have; use `pls run \(automation.id)`"
+                : "pls: missing \(names); give it on the command line (there's no terminal to ask in)")
             throw Exit.usage
         }
-        try Prompt.fillMissing(&binding)
-    }
-    if automation.confirm, !yes, !dryRun {
-        guard Prompt.isInteractive else {
+        if asksFirst {
             printError("pls: \(automation.id) asks before running; pass --yes to run it without a terminal")
             throw Exit.usage
         }
+    }
+    // Say what's being repeated, unless the dry run or the confirm question is about to show the plan anyway.
+    if trigger == .again, !dryRun, !asksFirst {
+        let values = automation.params.compactMap { param in
+            binding.values[param.name].flatMap { $0.source == .repeated ? "\(param.name)=\($0.value)" : nil }
+        }
+        printError((["↻ \(automation.id)"] + values).joined(separator: "  "))
+    }
+    if !dryRun {
+        try Prompt.fillMissing(&binding)
+    }
+    if asksFirst {
         guard Prompt.confirm(binding) else { throw Exit.cancelled }
     }
 
-    let invocation = Invocation(binding)
     if dryRun {
         // A preview never asks: show what's missing instead of the command it can't complete yet.
-        printPlan(binding)
+        planLines(binding).forEach { print($0) }
         if binding.missing.isEmpty {
-            printInvocation(invocation)
+            invocationLines(Invocation(binding)).forEach { print($0) }
         } else {
             print("\n  pls would ask for \(binding.missing.map(\.name).joined(separator: ", ")) first.")
         }
@@ -39,26 +52,17 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, d
     // ignores it so it can wait and exit with the script's status. Prompts above still quit on Ctrl-C.
     signal(SIGINT, SIG_IGN)
     signal(SIGQUIT, SIG_IGN)
-    let started = Date()
-    let clock = ContinuousClock.now
-    let status: Int32
+    let outcome: Runner.Outcome
     do {
-        status = try Runner.run(invocation)
+        outcome = try Runner.run(binding, via: trigger)
     } catch {
         printError("pls: \(error)")
         throw Exit.cannotRun
     }
-
-    // Duration from a monotonic clock, so a clock change during the run can't make it negative or huge.
-    let elapsed = ContinuousClock.now - clock
-    let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
-    let entry = HistoryEntry(binding, via: trigger, exit: status, seconds: seconds, at: started)
-    do {
-        try HistoryStore().append(entry)
-    } catch {
-        printError("pls: warning: \(error)")
+    if let historyError = outcome.historyError {
+        printError("pls: warning: \(historyError)")
     }
-    if status != 0 {
-        throw ExitCode(status)
+    if outcome.status != 0 {
+        throw ExitCode(outcome.status)
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+@testable import PlsCore
 
 /// A throwaway pls home in the temp directory, removed when the value is released.
 final class TempHome {
@@ -37,4 +38,24 @@ final class TempHome {
             at: url.appending(path: "automations/\(path)"), withIntermediateDirectories: true
         )
     }
+}
+
+/// An automation whose params are written the way a header would declare them.
+func makeAutomation(_ id: String = "test", params: String...) throws -> Automation {
+    var metadata = Metadata()
+    for line in params {
+        try metadata.add(HeaderParser.parseParam(line))
+    }
+    return Automation(id: id, kind: .shell, source: .file(URL(filePath: "/tmp/\(id).sh")), metadata: metadata)
+}
+
+func makeEntry(
+    _ id: String,
+    params: [String: String] = [:],
+    chosen: [String] = [],
+    via: HistoryEntry.Trigger = .run,
+    exit: Int32 = 0,
+    at: Date = Date(timeIntervalSince1970: 1_800_000_000)
+) -> HistoryEntry {
+    HistoryEntry(at: at, id: id, params: params, chosen: chosen, via: via, exit: exit, seconds: 0.123)
 }

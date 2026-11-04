@@ -36,7 +36,7 @@ public struct Invocation: Sendable, Equatable {
             self.arguments = [script.path] + values
         case .shell:
             // Without a shebang the kernel can't exec the file (ENOEXEC), executable or not; use zsh, as a shell would.
-            guard let interpreter = Self.shebang(of: script), let program = interpreter.first else {
+            guard let interpreter = Shebang.read(script), let program = interpreter.first else {
                 self.executable = URL(filePath: "/bin/zsh")
                 self.arguments = [script.path] + values
                 break
@@ -65,7 +65,7 @@ public struct Invocation: Sendable, Equatable {
     }
 
     /// `older_than_days` → `PLS_OLDER_THAN_DAYS`.
-    public static func variableName(for param: String) -> String {
+    private static func variableName(for param: String) -> String {
         "PLS_" + param.uppercased()
     }
 
@@ -78,18 +78,6 @@ public struct Invocation: Sendable, Equatable {
             return homeDirectory + path.dropFirst()
         }
         return path.hasPrefix("~") ? (path as NSString).expandingTildeInPath : path
-    }
-
-    /// The `#!` line split into program and arguments, e.g. `["/usr/bin/env", "python3"]`.
-    private static func shebang(of script: URL) -> [String]? {
-        guard let handle = try? FileHandle(forReadingFrom: script) else { return nil }
-        defer { try? handle.close() }
-        guard let data = try? handle.read(upToCount: 512),
-              let firstLine = String(decoding: data, as: UTF8.self).split(whereSeparator: \.isNewline).first,
-              firstLine.hasPrefix("#!")
-        else { return nil }
-        let words = firstLine.dropFirst(2).split(whereSeparator: \.isWhitespace).map(String.init)
-        return words.isEmpty ? nil : words
     }
 
     /// `word`, quoted for a shell only if it needs to be.

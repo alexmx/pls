@@ -32,11 +32,7 @@ struct ShowCommand: ParsableCommand {
                 }
                 return [param.name, param.type.description, requirement, param.description ?? ""]
             }
-            let widths = (0..<3).map { column in rows.map { $0[column].count }.max() ?? 0 }
-            for row in rows {
-                let line = (0..<3).map { row[$0].padded(to: widths[$0]) }.joined(separator: "  ") + "  " + row[3]
-                print("  " + line.trimmingCharacters(in: .whitespaces))
-            }
+            table(rows, indent: "  ").forEach { print($0) }
         }
 
         if !automation.examples.isEmpty {

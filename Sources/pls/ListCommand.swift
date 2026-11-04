@@ -32,15 +32,8 @@ struct ListCommand: ParsableCommand {
             print("No automations yet. Add scripts to \(displayPath(library.automationsDirectory)).")
             return
         }
-        let idWidth = library.automations.map(\.id.count).max() ?? 0
-        let kindWidth = library.automations.map(\.kind.rawValue.count).max() ?? 0
-        for automation in library.automations {
-            print([
-                automation.id.padded(to: idWidth),
-                automation.kind.rawValue.padded(to: kindWidth),
-                automation.description ?? "(no description)"
-            ].joined(separator: "  "))
-        }
+        let rows = library.automations.map { [$0.id, $0.kind.rawValue, $0.description ?? "(no description)"] }
+        table(rows).forEach { print($0) }
     }
 }
 
@@ -74,16 +67,11 @@ struct AutomationJSON: Encodable {
         self.confirm = automation.confirm
         self.examples = automation.examples
         self.params = automation.params.map { param in
-            let defaultValue: String? = if case let .defaultValue(value) = param.requirement {
-                value
-            } else {
-                nil
-            }
-            return ParamJSON(
+            ParamJSON(
                 name: param.name,
                 type: param.type.description,
                 required: param.requirement == .required,
-                default: defaultValue,
+                default: param.defaultValue,
                 description: param.description
             )
         }

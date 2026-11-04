@@ -1,28 +1,21 @@
 import PlsCore
 
 /// The automation and each param's value with where it came from (SPEC §6 "plan display").
-func printPlan(_ binding: Binding, write: (String) -> Void = { print($0) }) {
+func planLines(_ binding: Binding) -> [String] {
     let automation = binding.automation
-    write("→ \(automation.name)  (\(automation.id))")
     let rows = automation.params.map { param -> [String] in
         guard let bound = binding.values[param.name] else {
             return [param.name, param.requirement == .required ? "(missing)" : "(empty)", ""]
         }
         return [param.name, bound.value.isEmpty ? "\"\"" : bound.value, bound.source.rawValue]
     }
-    let widths = (0..<2).map { column in rows.map { $0[column].count }.max() ?? 0 }
-    for row in rows {
-        let line = [row[0].padded(to: widths[0]), row[1].padded(to: widths[1]), row[2]].joined(separator: "  ")
-        write("    " + line.trimmingCharacters(in: .whitespaces))
-    }
+    return ["→ \(automation.name)  (\(automation.id))"] + table(rows, indent: "    ")
 }
 
 /// The exact command and the PLS_ variables, for --dry-run.
-func printInvocation(_ invocation: Invocation) {
-    print("\n  command  \(invocation.commandLine)")
+func invocationLines(_ invocation: Invocation) -> [String] {
     let variables = invocation.variables.sorted { $0.key < $1.key }
         .map { "\($0.key)=\(Invocation.shellQuoted($0.value))" }
-    for (index, line) in variables.enumerated() {
-        print((index == 0 ? "  env      " : "           ") + line)
-    }
+    return ["", "  command  \(invocation.commandLine)"]
+        + variables.enumerated().map { index, line in (index == 0 ? "  env      " : "           ") + line }
 }

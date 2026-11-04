@@ -11,16 +11,10 @@ public enum Doctor {
             if automation.description == nil {
                 warn("no description, so natural-language requests will never pick it")
             }
-            if automation.kind == .shell, !hasShebang(automation.script) {
+            if automation.kind == .shell, Shebang.read(automation.script) == nil {
                 warn("has no shebang, so it runs with /bin/zsh", file: automation.script)
             }
         }
         return found
-    }
-
-    private static func hasShebang(_ url: URL) -> Bool {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
-        defer { try? handle.close() }
-        return (try? handle.read(upToCount: 2)) == Data("#!".utf8)
     }
 }

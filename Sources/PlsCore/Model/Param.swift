@@ -33,6 +33,17 @@ public struct Param: Sendable, Equatable {
     }
 }
 
+extension Param {
+    /// The default, if the param has one.
+    public var defaultValue: String? {
+        if case let .defaultValue(value) = requirement {
+            value
+        } else {
+            nil
+        }
+    }
+}
+
 extension Param.Requirement {
     /// Both formats mark a param optional (`?` / `optional: true`) or give a default, never both.
     init(param name: String, isOptional: Bool, defaultValue: String?) throws(ParamError) {

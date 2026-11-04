@@ -41,6 +41,16 @@ struct DoctorTests {
         #expect(files == [manifest, manifest])
     }
 
+    /// A bare `#!` names no interpreter, so the script runs with zsh; doctor must say so, like for no shebang.
+    @Test func bareShebangCountsAsNone() throws {
+        let home = try TempHome()
+        try home.write("x/manifest.yaml", "description: x\nentry: run.sh\n")
+        let entry = try home.write("x/run.sh", "#!\necho hi\n")
+        #expect(Doctor.check(Library.load(home: home.url)) == [
+            Diagnostic(.warning, "has no shebang, so it runs with /bin/zsh", file: entry, automation: "x")
+        ])
+    }
+
     @Test(arguments: [false, true])
     func shellScriptWithoutShebang(executable: Bool) throws {
         let home = try TempHome()

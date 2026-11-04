@@ -12,7 +12,6 @@ public enum HeaderParser {
 
     public static func parse(_ text: String, commentPrefix: String) -> Result {
         var result = Result()
-        var sawName = false, sawDescription = false
         // isNewline, not "\n": in Swift "\r\n" is a single Character, so CRLF files would never split.
         let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
         for (index, rawLine) in lines.enumerated() {
@@ -55,16 +54,14 @@ public enum HeaderParser {
             }
             switch key {
             case "name":
-                if sawName {
+                if result.metadata.name != nil {
                     report(.warning, "@pls.name is set twice; the last one wins")
                 }
-                sawName = true
                 result.metadata.name = value
             case "description":
-                if sawDescription {
+                if result.metadata.description != nil {
                     report(.warning, "@pls.description is set twice; the last one wins")
                 }
-                sawDescription = true
                 result.metadata.description = value
             case "example":
                 result.metadata.examples.append(value)

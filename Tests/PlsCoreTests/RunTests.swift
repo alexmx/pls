@@ -6,18 +6,20 @@ import Testing
 struct RunTests {
     // MARK: invocation
 
-    private func invocation(_ home: TempHome, _ file: String, arguments: [String] = []) throws -> Invocation {
+    private func binding(_ home: TempHome, _ id: String, arguments: [String] = []) throws -> Binding {
         let library = Library.load(home: home.url)
-        let id = (file.split(separator: "/").first.map(String.init) ?? file)
-            .replacingOccurrences(of: #"\.[a-z]+$"#, with: "", options: .regularExpression)
         let automation = try #require(library.automation(id: id), "\(library.diagnostics)")
-        return try Invocation(ParamBinder.bind(automation, arguments: arguments), homeDirectory: "/Users/me")
+        return try ParamBinder.bind(automation, arguments: arguments)
+    }
+
+    private func invocation(_ home: TempHome, _ id: String, arguments: [String] = []) throws -> Invocation {
+        try Invocation(binding(home, id, arguments: arguments), homeDirectory: "/Users/me")
     }
 
     @Test func executableScriptRunsDirectly() throws {
         let home = try TempHome()
         let script = try home.write("a.sh", "#!/bin/zsh\n# @pls.param x: string\n", executable: true)
-        let run = try invocation(home, "a.sh", arguments: ["hi"])
+        let run = try invocation(home, "a", arguments: ["hi"])
         #expect(run.executable == script)
         #expect(run.arguments == ["hi"])
     }
@@ -26,7 +28,7 @@ struct RunTests {
     @Test func executableScriptWithoutShebangUsesZsh() throws {
         let home = try TempHome()
         let script = try home.write("a.sh", "echo hi\n", executable: true)
-        let run = try invocation(home, "a.sh")
+        let run = try invocation(home, "a")
         #expect(run.executable.path == "/bin/zsh")
         #expect(run.arguments == [script.path])
     }
@@ -34,7 +36,7 @@ struct RunTests {
     @Test func nonExecutableScriptUsesItsShebang() throws {
         let home = try TempHome()
         let script = try home.write("a.py", "#!/usr/bin/env python3 -u\nprint(1)\n")
-        let run = try invocation(home, "a.py")
+        let run = try invocation(home, "a")
         #expect(run.executable.path == "/usr/bin/env")
         #expect(run.arguments == ["python3", "-u", script.path])
     }
@@ -42,7 +44,7 @@ struct RunTests {
     @Test func nonExecutableScriptWithoutShebangUsesZsh() throws {
         let home = try TempHome()
         let script = try home.write("a.sh", "echo hi\n")
-        let run = try invocation(home, "a.sh")
+        let run = try invocation(home, "a")
         #expect(run.executable.path == "/bin/zsh")
         #expect(run.arguments == [script.path])
     }
@@ -50,7 +52,7 @@ struct RunTests {
     @Test func appleScriptUsesOsascript() throws {
         let home = try TempHome()
         let script = try home.write("a.applescript", "-- @pls.param mode: enum(dark|light)\n")
-        let run = try invocation(home, "a.applescript", arguments: ["dark"])
+        let run = try invocation(home, "a", arguments: ["dark"])
         #expect(run.executable.path == "/usr/bin/osascript")
         #expect(run.arguments == [script.path, "dark"])
     }
@@ -64,7 +66,7 @@ struct RunTests {
         # @pls.param older_than_days: int = 30
         """, executable: true)
 
-        let run = try invocation(home, "a.sh")
+        let run = try invocation(home, "a")
 
         #expect(run.arguments == ["/Users/me/Desktop", "", "30"])
         #expect(run.variables == ["PLS_ID": "a", "PLS_FOLDER": "/Users/me/Desktop", "PLS_OLDER_THAN_DAYS": "30"])
@@ -74,14 +76,14 @@ struct RunTests {
         let home = try TempHome()
         try home.write("tool/manifest.yaml", "entry: run.sh\n")
         try home.write("tool/run.sh", "", executable: true)
-        let run = try invocation(home, "tool/run.sh")
+        let run = try invocation(home, "tool")
         #expect(run.variables["PLS_AUTOMATION_DIR"] == home.url.appending(path: "automations/tool").path)
     }
 
     @Test func environmentDropsStaleVariables() throws {
         let home = try TempHome()
         try home.write("a.sh", "# @pls.param name: string?\n", executable: true)
-        let run = try invocation(home, "a.sh")
+        let run = try invocation(home, "a")
         let inherited = [
             "PATH": "/bin", "PLS_NAME": "stale", "PLS_ID": "old", "PLS_PORT": "from a calling automation",
             "PLS_AUTOMATION_DIR": "/elsewhere", "PLS_HOME": "/my/library"
@@ -105,7 +107,7 @@ struct RunTests {
         let script = try home.write(
             "a.sh", "#!/bin/zsh\n# @pls.param a: string\n# @pls.param b: string?\n", executable: true
         )
-        let run = try invocation(home, "a.sh", arguments: ["it's here"])
+        let run = try invocation(home, "a", arguments: ["it's here"])
         #expect(run.commandLine == "\(script.path) 'it'\\''s here' ''")
     }
 
@@ -113,11 +115,11 @@ struct RunTests {
 
     /// Runs the automation with `OUT` pointing at a file the script writes to; returns (status, file contents).
     private func run(
-        _ home: TempHome, _ file: String, arguments: [String] = [], environment: [String: String] = [:]
+        _ home: TempHome, _ id: String, arguments: [String] = [], environment: [String: String] = [:]
     ) throws -> (Int32, String) {
         let out = home.url.appending(path: "out.txt")
         let status = try Runner.run(
-            invocation(home, file, arguments: arguments),
+            invocation(home, id, arguments: arguments),
             environment: environment.merging(["OUT": out.path, "PATH": "/usr/bin:/bin"]) { $1 }
         )
         return (status, (try? String(contentsOf: out, encoding: .utf8)) ?? "")
@@ -133,7 +135,7 @@ struct RunTests {
         echo "$PLS_WORD ${PLS_NAME-unset} $PLS_ID" >> "$OUT"
         """, executable: true)
 
-        let (status, output) = try run(home, "a.sh", arguments: ["two words"], environment: ["PLS_NAME": "stale"])
+        let (status, output) = try run(home, "a", arguments: ["two words"], environment: ["PLS_NAME": "stale"])
 
         #expect(status == 0)
         #expect(output == "two words||two words unset a\n")
@@ -142,13 +144,13 @@ struct RunTests {
     @Test func exitStatusPassesThrough() throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\nexit 3\n", executable: true)
-        #expect(try run(home, "a.sh").0 == 3)
+        #expect(try run(home, "a").0 == 3)
     }
 
     @Test func signalBecomes128PlusTheSignal() throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\nkill -TERM $$\n", executable: true)
-        #expect(try run(home, "a.sh").0 == 128 + SIGTERM)
+        #expect(try run(home, "a").0 == 128 + SIGTERM)
     }
 
     @Test func appleScriptGetsItsParamsInOrder() throws {
@@ -162,7 +164,7 @@ struct RunTests {
         end run
         """)
 
-        let (status, output) = try run(home, "a.applescript", arguments: ["one", "two words"])
+        let (status, output) = try run(home, "a", arguments: ["one", "two words"])
 
         #expect(status == 0)
         #expect(output == "one|two words")
@@ -173,7 +175,7 @@ struct RunTests {
     @Test func scriptStaysInTheCallersProcessGroup() throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\nps -o pgid= -p $$ | tr -d ' ' > \"$OUT\"\n", executable: true)
-        let (status, output) = try run(home, "a.sh")
+        let (status, output) = try run(home, "a")
         #expect(status == 0)
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == String(getpgrp()))
     }
@@ -184,12 +186,55 @@ struct RunTests {
         try home.write("a.sh", "#!/bin/zsh\nkill -INT $$\nsleep 1\nexit 0\n", executable: true)
         let previous = signal(SIGINT, SIG_IGN)
         defer { signal(SIGINT, previous) }
-        #expect(try run(home, "a.sh").0 == 128 + SIGINT)
+        #expect(try run(home, "a").0 == 128 + SIGINT)
     }
 
     @Test func missingProgramIsALaunchError() throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/nonexistent/interpreter\n")
-        #expect(throws: Runner.LaunchError.self) { try run(home, "a.sh") }
+        #expect(throws: Runner.LaunchError.self) { try run(home, "a") }
+    }
+
+    // MARK: recorded runs
+
+    @Test func recordedRunIsWrittenToHistory() throws {
+        let home = try TempHome()
+        try home.write("a.sh", "#!/bin/zsh\n# @pls.param port: int\nexit 3\n", executable: true)
+        let history = HistoryStore(file: home.url.appending(path: "history.jsonl"))
+
+        let outcome = try Runner.run(binding(home, "a", arguments: ["80"]), via: .again, history: history)
+
+        #expect(outcome.status == 3)
+        #expect(outcome.historyError == nil)
+        let entry = try #require(history.recent(1).first)
+        #expect((entry.id, entry.params, entry.chosen, entry.via, entry.exit) == (
+            "a",
+            ["port": "80"],
+            ["port"],
+            .again,
+            3
+        ))
+        #expect(entry.seconds >= 0)
+    }
+
+    @Test func unwritableHistoryKeepsTheStatusAndReportsTheError() throws {
+        let home = try TempHome()
+        try home.write("a.sh", "#!/bin/zsh\nexit 4\n", executable: true)
+        let file = home.url.appending(path: "history.jsonl")
+        try Data().write(to: file)
+        try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file.path)
+
+        let outcome = try Runner.run(binding(home, "a"), via: .run, history: HistoryStore(file: file))
+
+        #expect(outcome.status == 4)
+        #expect(outcome.historyError != nil)
+    }
+
+    @Test func scriptThatCantStartIsNotRecorded() throws {
+        let home = try TempHome()
+        try home.write("a.sh", "#!/nonexistent/interpreter\n")
+        let history = HistoryStore(file: home.url.appending(path: "history.jsonl"))
+        #expect(throws: Runner.LaunchError.self) { try Runner.run(binding(home, "a"), via: .run, history: history) }
+        #expect(history.recent(1).isEmpty)
     }
 }

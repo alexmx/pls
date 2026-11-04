@@ -2,15 +2,6 @@ import Foundation
 @testable import PlsCore
 import Testing
 
-/// An automation whose params are written the way a header would declare them.
-func makeAutomation(_ id: String = "test", params: String...) throws -> Automation {
-    var metadata = Metadata()
-    for line in params {
-        try metadata.add(HeaderParser.parseParam(line))
-    }
-    return Automation(id: id, kind: .shell, source: .file(URL(filePath: "/tmp/\(id).sh")), metadata: metadata)
-}
-
 @Suite(.timeLimit(.minutes(1)))
 struct ParamBinderTests {
     let compress: Automation
