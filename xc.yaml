@@ -1,0 +1,30 @@
+# xc configuration for quick: a Swift package, driven through SwiftPM.
+# Run `xc list` to see all commands.
+
+commands:
+  build:
+    run: "swift build"
+    variants:
+      release:
+        run: "swift build -c release"
+
+  test:
+    run: "swift test"
+
+  format:
+    run: "swiftformat ."
+    variants:
+      # Fail (don't change files) if anything is unformatted.
+      check:
+        run: "swiftformat --lint ."
+
+  lint:
+    run: "swiftlint lint --quiet --strict"
+
+  # Run before every commit.
+  verify:
+    run: "xc format:check && xc lint && xc build && xc test"
+
+  # Run the CLI. Example: xc quick -- list
+  quick:
+    run: "swift run quick"

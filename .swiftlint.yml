@@ -1,0 +1,20 @@
+# Mechanical checks only; judgment calls belong to code review.
+# Suppress a deliberate exception with `// swiftlint:disable:this <rule> - <reason>`.
+
+only_rules:
+  - custom_rules
+
+included:
+  - Sources
+  - Tests
+
+custom_rules:
+  suite_without_time_limit:
+    name: "Test suite without a time limit"
+    included: "/Tests/.*\\.swift"
+    # A top-level suite with no `.timeLimit` in the attribute above it (past up to three more
+    # attributes or doc lines), and a test outside any suite. Nested suites inherit their parent's.
+    regex: '(?m)(?<!\.timeLimit\([^\n]{0,200}\n(?:[ \t]{0,8}(?:@\w|///)[^\n]{0,200}\n){0,3})^(?:(?:@\w+|public|package|internal|fileprivate|private|nonisolated|final)[ \t]+){0,4}(?:struct|enum|class|actor)[ \t]+\w+Tests\b|^@Test\b'
+    excluded_match_kinds: [comment, doccomment, string]
+    message: "A top-level test suite carries `@Suite(.timeLimit(.minutes(1)))`, so a hung test fails instead of hanging the run."
+    severity: error

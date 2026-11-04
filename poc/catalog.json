@@ -1,0 +1,204 @@
+{
+  "automations": [
+    {
+      "id": "compress-images",
+      "name": "Compress images",
+      "description": "Re-encode images in a folder at lower quality to reduce file size",
+      "kind": "shell",
+      "examples": ["shrink my screenshots", "make the pngs on my desktop smaller"],
+      "params": [
+        { "name": "folder", "type": "path", "description": "Folder containing the images", "default": "~/Desktop" },
+        { "name": "quality", "type": "int", "description": "Output quality percent", "default": "80", "min": 1, "max": 100 },
+        { "name": "format", "type": "enum", "description": "Which image type to process", "default": "png", "options": ["png", "jpg", "heic"] }
+      ],
+      "run": "compress.sh {{folder}} --quality {{quality}} --format {{format}}"
+    },
+    {
+      "id": "resize-images",
+      "name": "Resize images",
+      "description": "Scale the pixel dimensions of images in a folder by a percentage",
+      "kind": "shell",
+      "examples": ["make these photos half the size", "scale images down to 25%"],
+      "params": [
+        { "name": "folder", "type": "path", "description": "Folder containing the images", "default": "~/Desktop" },
+        { "name": "percent", "type": "int", "description": "New size as a percent of the original dimensions", "default": "50", "min": 1, "max": 400 }
+      ],
+      "run": "sips -Z ... {{folder}} ({{percent}}%)"
+    },
+    {
+      "id": "clean-downloads",
+      "name": "Clean Downloads",
+      "description": "Move files in Downloads older than N days to the Trash",
+      "kind": "shell",
+      "examples": ["tidy up my downloads", "get rid of old downloads"],
+      "params": [
+        { "name": "older_than_days", "type": "int", "description": "Only files older than this many days", "default": "30", "min": 0, "max": 3650 }
+      ],
+      "run": "find ~/Downloads -mtime +{{older_than_days}} -exec trash {} +"
+    },
+    {
+      "id": "empty-trash",
+      "name": "Empty Trash",
+      "description": "Permanently empty the Finder Trash",
+      "kind": "applescript",
+      "examples": ["empty the bin"],
+      "params": [],
+      "run": "tell application \"Finder\" to empty trash"
+    },
+    {
+      "id": "dark-mode",
+      "name": "Dark mode",
+      "description": "Switch the system appearance between dark and light mode",
+      "kind": "applescript",
+      "examples": ["turn on dark mode", "switch to light theme"],
+      "params": [
+        { "name": "mode", "type": "enum", "description": "Desired appearance", "default": "toggle", "options": ["dark", "light", "toggle"] }
+      ],
+      "run": "osascript dark-mode.applescript {{mode}}"
+    },
+    {
+      "id": "set-volume",
+      "name": "Set volume",
+      "description": "Set the system output volume",
+      "kind": "applescript",
+      "examples": ["volume to 30", "mute the sound"],
+      "params": [
+        { "name": "level", "type": "int", "description": "Volume level from 0 (mute) to 100", "default": "50", "min": 0, "max": 100 }
+      ],
+      "run": "osascript -e 'set volume output volume {{level}}'"
+    },
+    {
+      "id": "open-project",
+      "name": "Open project",
+      "description": "Open a code project from ~/Projects in an editor",
+      "kind": "shell",
+      "examples": ["open quick in xcode", "work on the website project"],
+      "params": [
+        { "name": "project", "type": "string", "description": "Project folder name inside ~/Projects" },
+        { "name": "editor", "type": "enum", "description": "Editor to open it in", "default": "xcode", "options": ["xcode", "vscode", "cursor", "finder"] }
+      ],
+      "run": "open -a {{editor}} ~/Projects/{{project}}"
+    },
+    {
+      "id": "git-pull-all",
+      "name": "Pull all repos",
+      "description": "Run git pull in every git repository inside a folder",
+      "kind": "shell",
+      "examples": ["update all my repos", "sync every project from github"],
+      "params": [
+        { "name": "folder", "type": "path", "description": "Parent folder of the repositories", "default": "~/Projects" }
+      ],
+      "run": "for d in {{folder}}/*/.git; do git -C ${d%/.git} pull; done"
+    },
+    {
+      "id": "brew-upgrade",
+      "name": "Upgrade Homebrew",
+      "description": "Update Homebrew and upgrade all installed packages, then clean up",
+      "kind": "shell",
+      "examples": ["update brew", "upgrade my packages"],
+      "params": [],
+      "run": "brew update && brew upgrade && brew cleanup"
+    },
+    {
+      "id": "kill-port",
+      "name": "Kill process on port",
+      "description": "Kill whatever process is listening on a TCP port",
+      "kind": "shell",
+      "examples": ["free up port 3000", "something is stuck on 8080"],
+      "params": [
+        { "name": "port", "type": "int", "description": "TCP port number", "min": 1, "max": 65535 }
+      ],
+      "run": "lsof -ti tcp:{{port}} | xargs kill"
+    },
+    {
+      "id": "new-note",
+      "name": "New note",
+      "description": "Create a new note in Apple Notes",
+      "kind": "shortcut",
+      "examples": ["note that the meeting moved to friday", "jot down an idea"],
+      "params": [
+        { "name": "title", "type": "string", "description": "Short note title" },
+        { "name": "body", "type": "string", "description": "Note content", "default": "" }
+      ],
+      "run": "shortcuts run 'New Note' (title={{title}}, body={{body}})"
+    },
+    {
+      "id": "focus-mode",
+      "name": "Focus mode",
+      "description": "Turn a macOS Focus mode on or off, optionally for a number of minutes",
+      "kind": "shortcut",
+      "examples": ["do not disturb for an hour", "turn off focus"],
+      "params": [
+        { "name": "mode", "type": "enum", "description": "Which Focus", "default": "do-not-disturb", "options": ["do-not-disturb", "work", "personal", "sleep", "off"] },
+        { "name": "minutes", "type": "int", "description": "How long, in minutes. 0 means until turned off", "default": "0", "min": 0, "max": 1440 }
+      ],
+      "run": "shortcuts run 'Set Focus' (mode={{mode}}, minutes={{minutes}})"
+    },
+    {
+      "id": "pomodoro",
+      "name": "Pomodoro timer",
+      "description": "Start a focus timer for a task and notify when it ends",
+      "kind": "shell",
+      "examples": ["start a 25 minute timer", "pomodoro for writing the report"],
+      "params": [
+        { "name": "minutes", "type": "int", "description": "Timer length in minutes", "default": "25", "min": 1, "max": 180 },
+        { "name": "task", "type": "string", "description": "What you're working on", "default": "" }
+      ],
+      "run": "sleep $(({{minutes}}*60)) && osascript -e 'display notification \"{{task}} done\"'"
+    },
+    {
+      "id": "convert-video",
+      "name": "Convert video",
+      "description": "Convert a video file to another format with ffmpeg",
+      "kind": "shell",
+      "examples": ["turn this screen recording into a gif", "convert the mov to mp4"],
+      "params": [
+        { "name": "file", "type": "path", "description": "Input video file" },
+        { "name": "format", "type": "enum", "description": "Output format", "default": "mp4", "options": ["mp4", "gif", "mov", "webm"] }
+      ],
+      "run": "ffmpeg -i {{file}} {{file%.*}}.{{format}}"
+    },
+    {
+      "id": "flush-dns",
+      "name": "Flush DNS",
+      "description": "Clear the macOS DNS cache",
+      "kind": "shell",
+      "examples": ["reset dns", "websites not resolving"],
+      "params": [],
+      "run": "sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder"
+    },
+    {
+      "id": "wifi",
+      "name": "Wi-Fi power",
+      "description": "Turn Wi-Fi on or off",
+      "kind": "shell",
+      "examples": ["disable wifi", "turn the wireless back on"],
+      "params": [
+        { "name": "state", "type": "enum", "description": "Desired Wi-Fi state", "options": ["on", "off"] }
+      ],
+      "run": "networksetup -setairportpower en0 {{state}}"
+    },
+    {
+      "id": "quit-apps",
+      "name": "Quit all apps",
+      "description": "Quit every open app except the ones listed",
+      "kind": "applescript",
+      "examples": ["close everything", "quit all apps except terminal"],
+      "params": [
+        { "name": "except", "type": "string", "description": "Comma-separated app names to keep open", "default": "Finder" }
+      ],
+      "run": "osascript quit-apps.applescript '{{except}}'"
+    },
+    {
+      "id": "backup-dotfiles",
+      "name": "Backup dotfiles",
+      "description": "Commit and push changes in the ~/dotfiles git repo",
+      "kind": "shell",
+      "examples": ["save my config files", "push dotfiles"],
+      "params": [
+        { "name": "message", "type": "string", "description": "Commit message", "default": "update" }
+      ],
+      "run": "cd ~/dotfiles && git add -A && git commit -m '{{message}}' && git push"
+    }
+  ]
+}
