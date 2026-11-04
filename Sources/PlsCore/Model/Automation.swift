@@ -44,6 +44,22 @@ public struct Automation: Sendable, Equatable {
         self.confirm = metadata.confirm
     }
 
+    /// The file or folder the automation was loaded from.
+    public var sourceURL: URL {
+        switch source {
+        case let .file(url): url
+        case let .folder(url, _): url
+        }
+    }
+
+    /// Where its metadata is written: the script's header, or the folder's manifest.yaml.
+    public var declarationURL: URL {
+        switch source {
+        case let .file(url): url
+        case let .folder(url, _): url.appending(path: "manifest.yaml")
+        }
+    }
+
     /// The script that runs.
     public var script: URL {
         switch source {

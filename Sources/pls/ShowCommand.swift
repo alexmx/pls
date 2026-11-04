@@ -11,8 +11,8 @@ struct ShowCommand: ParsableCommand {
         let library = Library.loadDefault()
         guard let automation = library.automation(id: id) else {
             printError("No automation with id \(id).")
-            if library.diagnostics.contains(where: { $0.file?.deletingPathExtension().lastPathComponent == id }) {
-                printError("A file named \(id) has problems; run `pls doctor`.")
+            if library.leftOutIDs.contains(id) {
+                printError("\(id) has problems that keep it from loading; run `pls doctor`.")
             }
             throw Exit.notFound
         }

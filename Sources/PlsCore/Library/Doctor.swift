@@ -6,26 +6,19 @@ public enum Doctor {
     public static func check(_ library: Library, commandNames: Set<String>) -> [Diagnostic] {
         var found = library.diagnostics
         for automation in library.automations {
-            let file = automation.sourceURL
+            func warn(_ message: String, file: URL = automation.declarationURL) {
+                found.append(Diagnostic(.warning, message, file: file, automation: automation.id))
+            }
             if commandNames.contains(automation.id) {
-                found.append(Diagnostic(
-                    .warning,
-                    "id \(automation.id) is also a command; run it with `pls run \(automation.id)`",
-                    file: file
-                ))
+                warn("id \(automation.id) is also a command; run it with `pls run \(automation.id)`")
             }
             if automation.description == nil {
-                found.append(Diagnostic(
-                    .warning, "no description, so natural-language requests will never pick it", file: file
-                ))
+                warn("no description, so natural-language requests will never pick it")
             }
             if automation.kind == .shell,
                !FileManager.default.isExecutableFile(atPath: automation.script.path),
                !hasShebang(automation.script) {
-                found.append(Diagnostic(
-                    .warning, "not executable and has no shebang, so it will run with /bin/zsh",
-                    file: automation.script
-                ))
+                warn("not executable and has no shebang, so it will run with /bin/zsh", file: automation.script)
             }
         }
         return found

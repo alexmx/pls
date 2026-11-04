@@ -18,7 +18,7 @@ struct ListCommand: ParsableCommand {
         } else {
             printTable(library)
         }
-        let broken = Set(library.diagnostics.filter { $0.severity == .error }.compactMap(\.file)).count
+        let broken = library.leftOutIDs.count
         if broken > 0 {
             printError(
                 "\(broken) automation\(broken == 1 ? " has" : "s have") problems and \(broken == 1 ? "is" : "are") "

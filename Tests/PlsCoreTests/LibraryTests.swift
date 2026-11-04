@@ -84,7 +84,7 @@ struct LibraryTests {
 
         #expect(library.automations.map(\.script.lastPathComponent) == ["kill-port.bash"])
         #expect(library.diagnostics == [
-            Diagnostic(.error, "id kill-port is already used by kill-port.bash", file: second)
+            Diagnostic(.error, "id kill-port is already used by kill-port.bash", file: second, automation: "kill-port")
         ])
     }
 
@@ -114,6 +114,19 @@ struct LibraryTests {
             "warning: no-manifest: folder has no manifest.yaml, so it's ignored",
             "error: standalone.scpt: compiled .scpt files can't carry a header; put it in a folder with a manifest.yaml"
         ])
+    }
+
+    @Test func leftOutIDsCoverFilesAndFolders() throws {
+        let home = try TempHome()
+        try home.write("bad-file.sh", "# @pls.param x: nope\n")
+        try home.write("bad-folder/manifest.yaml", "entry: missing.sh\n")
+        try home.write("warned.sh", "# @pls.icon: fire\n")
+        try home.write("fine.sh", "")
+
+        let library = Library.load(home: home.url)
+
+        #expect(library.leftOutIDs == ["bad-file", "bad-folder"])
+        #expect(library.automations.map(\.id) == ["fine", "warned"])
     }
 
     @Test func homeComesFromPlsHomeThenXDGConfigHome() {

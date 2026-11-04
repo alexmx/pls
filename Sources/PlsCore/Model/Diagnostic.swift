@@ -13,11 +13,16 @@ public struct Diagnostic: Sendable, Equatable {
     public let message: String
     public var file: URL?
     public var line: Int?
+    /// The automation the problem belongs to, when there is one (not for e.g. a missing library folder).
+    public var automationID: String?
 
-    public init(_ severity: Severity, _ message: String, file: URL? = nil, line: Int? = nil) {
+    public init(
+        _ severity: Severity, _ message: String, file: URL? = nil, line: Int? = nil, automation: String? = nil
+    ) {
         self.severity = severity
         self.message = message
         self.file = file
         self.line = line
+        self.automationID = automation
     }
 }
