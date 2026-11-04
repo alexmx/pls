@@ -10,9 +10,7 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, d
     if !binding.missing.isEmpty, !dryRun {
         guard Prompt.isInteractive else {
             let names = binding.missing.map { "--\($0.name)" }.joined(separator: ", ")
-            printError(trigger == .again
-                ? "pls: \(automation.id) now needs \(names), which the last run didn't have; use `pls run \(automation.id)`"
-                : "pls: missing \(names); give it on the command line (there's no terminal to ask in)")
+            printError("pls: missing \(names); give it on the command line (there's no terminal to ask in)")
             throw Exit.usage
         }
         try Prompt.fillMissing(&binding)
@@ -42,6 +40,7 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, d
     signal(SIGINT, SIG_IGN)
     signal(SIGQUIT, SIG_IGN)
     let started = Date()
+    let clock = ContinuousClock.now
     let status: Int32
     do {
         status = try Runner.run(invocation)
@@ -50,11 +49,12 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, d
         throw Exit.cannotRun
     }
 
-    let entry = HistoryEntry(
-        binding, via: trigger, exit: status, seconds: Date().timeIntervalSince(started), at: started
-    )
+    // Duration from a monotonic clock, so a clock change during the run can't make it negative or huge.
+    let elapsed = ContinuousClock.now - clock
+    let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+    let entry = HistoryEntry(binding, via: trigger, exit: status, seconds: seconds, at: started)
     do {
-        try HistoryStore(file: HistoryStore.defaultFile()).append(entry)
+        try HistoryStore().append(entry)
     } catch {
         printError("pls: warning: \(error)")
     }

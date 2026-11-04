@@ -35,9 +35,9 @@ extension Library {
     /// The automation with `id`, or a printed explanation and exit 65.
     func require(_ id: String) throws -> Automation {
         guard let automation = automation(id: id) else {
-            printError("No automation with id \(id).")
+            printError("pls: no automation with id \(id)")
             if leftOutIDs.contains(id) {
-                printError("\(id) has problems that keep it from loading; run `pls doctor`.")
+                printError("pls: \(id) has problems that keep it from loading; run `pls doctor`")
             }
             throw Exit.notFound
         }

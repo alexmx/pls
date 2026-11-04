@@ -21,8 +21,8 @@ struct ListCommand: ParsableCommand {
         let broken = library.leftOutIDs.count
         if broken > 0 {
             printError(
-                "\(broken) automation\(broken == 1 ? " has" : "s have") problems and \(broken == 1 ? "is" : "are") "
-                    + "left out; run `pls doctor`."
+                "pls: warning: \(broken) automation\(broken == 1 ? " has" : "s have") problems and "
+                    + "\(broken == 1 ? "is" : "are") left out; run `pls doctor`"
             )
         }
     }

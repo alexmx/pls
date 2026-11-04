@@ -112,13 +112,13 @@ public enum ParamBinder {
         return binding
     }
 
-    /// A binding that repeats `entry` against the automation as it is now (SPEC §8): values chosen in that run are
-    /// replayed, defaults come from the current automation, params it no longer has are dropped, and required params
-    /// it has gained are left missing for the caller to ask for.
-    public static func replay(_ entry: HistoryEntry, for automation: Automation) throws(BindingError) -> Binding {
+    /// A binding that repeats a run's chosen values against the automation as it is now (SPEC §8): they're replayed,
+    /// defaults come from the current automation, params it no longer has are dropped, and required params it has
+    /// gained are left missing for the caller to ask for.
+    public static func replay(_ chosen: [String: String], for automation: Automation) throws(BindingError) -> Binding {
         var binding = try bind(automation, arguments: [])
-        for param in automation.params where entry.chosen.contains(param.name) {
-            guard let value = entry.params[param.name] else { continue }
+        for param in automation.params {
+            guard let value = chosen[param.name] else { continue }
             try binding.supply(value, for: param, source: .repeated)
         }
         return binding

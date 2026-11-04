@@ -32,6 +32,11 @@ public struct HistoryEntry: Codable, Sendable, Equatable {
 }
 
 extension HistoryEntry {
+    /// The values that were typed, entered or repeated: what `pls again` replays.
+    public var chosenValues: [String: String] {
+        params.filter { chosen.contains($0.key) }
+    }
+
     /// The entry for a finished run of `binding`.
     public init(_ binding: Binding, via trigger: Trigger, exit: Int32, seconds: Double, at: Date) {
         self.init(
@@ -54,7 +59,8 @@ public struct HistoryStore: Sendable {
 
     public let file: URL
 
-    public init(file: URL) {
+    /// The store at `defaultFile()` unless a file is given.
+    public init(file: URL = HistoryStore.defaultFile()) {
         self.file = file
     }
 
@@ -65,39 +71,47 @@ public struct HistoryStore: Sendable {
     }
 
     /// Appends the entry as one line in a single write, so runs finishing at the same time don't interleave.
+    /// If the file doesn't end with a newline (a write cut short), the entry starts on a fresh line so it isn't
+    /// glued to the broken one.
     public func append(_ entry: HistoryEntry) throws(WriteError) {
-        var data: Data
+        func failure(_ reason: String) -> WriteError {
+            WriteError(description: "couldn't record history in \(file.path): \(reason)")
+        }
+        var line: Data
         do {
-            data = try Self.encoder.encode(entry)
+            line = try Self.encoder.encode(entry)
             try FileManager.default.createDirectory(
                 at: file.deletingLastPathComponent(), withIntermediateDirectories: true
             )
         } catch {
-            throw WriteError(description: "couldn't record history in \(file.path): \(error.localizedDescription)")
+            throw failure(error.localizedDescription)
         }
-        data.append(UInt8(ascii: "\n"))
+        line.append(Self.newline)
 
-        let descriptor = open(file.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
-        guard descriptor >= 0 else {
-            throw WriteError(
-                description: "couldn't record history in \(file.path): \(String(cString: strerror(errno)))"
-            )
-        }
+        let descriptor = open(file.path, O_RDWR | O_APPEND | O_CREAT, 0o644)
+        guard descriptor >= 0 else { throw failure(String(cString: strerror(errno))) }
         defer { close(descriptor) }
-        let written = data.withUnsafeBytes { write(descriptor, $0.baseAddress, $0.count) }
-        guard written == data.count else {
-            throw WriteError(
-                description: "couldn't record history in \(file.path): \(String(cString: strerror(errno)))"
-            )
+
+        var info = stat()
+        var last: UInt8 = 0
+        if fstat(descriptor, &info) == 0, info.st_size > 0, pread(descriptor, &last, 1, info.st_size - 1) == 1,
+           last != Self.newline {
+            line.insert(Self.newline, at: 0)
+        }
+        let written = line.withUnsafeBytes { Darwin.write(descriptor, $0.baseAddress, $0.count) }
+        guard written == line.count else {
+            throw failure(written < 0 ? String(cString: strerror(errno)) : "wrote \(written) of \(line.count) bytes")
         }
     }
 
-    /// Up to `limit` entries, newest first. Lines that can't be read are skipped.
+    /// Up to `limit` entries, newest first. A line that can't be read is skipped, and only that line: the file is
+    /// split on the newline byte alone (JSON text may contain U+2028 and friends) and decoded line by line (so stray
+    /// bytes in one line don't make the whole file unreadable).
     public func recent(_ limit: Int) -> [HistoryEntry] {
-        guard limit > 0, let text = try? String(contentsOf: file, encoding: .utf8) else { return [] }
+        guard limit > 0, let data = try? Data(contentsOf: file) else { return [] }
         var entries: [HistoryEntry] = []
-        for line in text.split(whereSeparator: \.isNewline).reversed() {
-            guard let entry = try? Self.decoder.decode(HistoryEntry.self, from: Data(line.utf8)) else { continue }
+        for line in data.split(separator: Self.newline).reversed() {
+            guard let entry = try? Self.decoder.decode(HistoryEntry.self, from: Data(line)) else { continue }
             entries.append(entry)
             if entries.count == limit {
                 break
@@ -105,6 +119,8 @@ public struct HistoryStore: Sendable {
         }
         return entries
     }
+
+    private static let newline = UInt8(ascii: "\n")
 
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()

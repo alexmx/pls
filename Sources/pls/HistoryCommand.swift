@@ -12,8 +12,12 @@ struct HistoryCommand: ParsableCommand {
     @Option(name: [.customShort("n"), .customLong("limit")], help: "How many runs to show.")
     var count = 20
 
+    func validate() throws {
+        guard count >= 1 else { throw ValidationError("--limit must be at least 1") }
+    }
+
     func run() {
-        let entries = HistoryStore(file: HistoryStore.defaultFile()).recent(count)
+        let entries = HistoryStore().recent(count)
         guard !entries.isEmpty else {
             print("No runs yet.")
             return
@@ -34,11 +38,11 @@ struct HistoryCommand: ParsableCommand {
         }
     }
 
-    /// "14:05" today, "Nov 3 14:05" before.
+    /// The time today ("14:05" or "2:05 PM", following the system's setting), plus the day before that.
     private static func time(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = Calendar.current.isDateInToday(date) ? "HH:mm" : "MMM d HH:mm"
-        return formatter.string(from: date)
+        let time = date.formatted(date: .omitted, time: .shortened)
+        guard !Calendar.current.isDateInToday(date) else { return time }
+        return date.formatted(.dateTime.month(.abbreviated).day()) + " " + time
     }
 
     /// Quoted only when it has spaces, so values stay readable and still unambiguous.
