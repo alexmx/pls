@@ -1,7 +1,7 @@
--- @quick.description: Switch the system appearance between dark and light
--- @quick.param mode: enum(dark|light|toggle) = toggle -- Desired appearance
--- @quick.example: it's too bright
--- @quick.example: turn on dark mode
+-- @pls.description: Switch the system appearance between dark and light
+-- @pls.param mode: enum(dark|light|toggle) = toggle -- Desired appearance
+-- @pls.example: it's too bright
+-- @pls.example: turn on dark mode
 
 on run argv
 	set mode to item 1 of argv

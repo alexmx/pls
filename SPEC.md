@@ -1,24 +1,24 @@
-# quick — MVP spec
+# pls — MVP spec
 
 A command-line runner for automations you write yourself (shell scripts, AppleScript, Apple Shortcuts),
 with natural-language "pick & fill" powered by Apple's on-device Foundation Model.
 
 ```
-quick run kill-port 3000              # run by id
-quick "something is stuck on port 3000"   # pick & fill with the on-device model, then confirm
+pls run kill-port 3000                    # run by id
+pls "something is stuck on port 3000"     # pick & fill with the on-device model, then confirm
 ```
 
 ## 1. Scope
 
 **In the MVP**
-- Load automations from `~/.quick`: single script files with a comment header, or folders with a `manifest.yaml`.
-- Opt-in Apple Shortcuts, registered in `~/.quick/shortcuts.yaml`.
+- Load automations from `~/.config/pls`: single script files with a comment header, or folders with a `manifest.yaml`.
+- Opt-in Apple Shortcuts, registered in `~/.config/pls/shortcuts.yaml`.
 - Run automations with typed, validated params; prompt for missing required values.
 - Natural language → pick an automation + fill its params (on-device model), always reviewed before running.
-- History, `quick again`, `quick doctor`, zsh completion.
+- History, `pls again`, `pls doctor`, zsh completion.
 
 **Not in the MVP**: generating or editing scripts with AI, one-off commands, multi-step workflows,
-triggers (schedules, file watchers), GUI launcher, Raycast script format, project-local `.quick/` folders,
+triggers (schedules, file watchers), GUI launcher, Raycast script format, project-local `.pls/` folders,
 learning from accepted picks (history records what's needed, see §8).
 
 **Why:** the proof of concept in `poc/` showed the on-device model routes 30/30 requests correctly and fills
@@ -26,8 +26,10 @@ params 18/19 in ~1.2s, but writes scripts poorly. The MVP uses the model only fo
 
 ## 2. Directory layout
 
+What you write and what pls writes live apart, so the first can sit in a dotfiles repo without per-machine noise.
+
 ```
-~/.quick/                 # override with $QUICK_HOME
+~/.config/pls/            # $PLS_HOME, else $XDG_CONFIG_HOME/pls, else ~/.config/pls
   automations/
     kill-port.sh          # single-file automation
     dark-mode.applescript # single-file automation
@@ -35,6 +37,8 @@ params 18/19 in ~1.2s, but writes scripts poorly. The MVP uses the model only fo
       manifest.yaml
       run.sh
   shortcuts.yaml          # opt-in Shortcuts
+
+~/.local/state/pls/       # $XDG_STATE_HOME/pls, else ~/.local/state/pls
   history.jsonl
 ```
 
@@ -66,23 +70,23 @@ Any file directly inside `automations/`. The id is the filename without extensio
 Compiled `.scpt` files can't carry a text header, so they must use the folder form.
 
 The header is the block of comment lines at the top of the file (after an optional shebang). Lines start with
-`# @quick.` in shell files and `-- @quick.` in AppleScript. Parsing stops at the first line that isn't a comment
+`# @pls.` in shell files and `-- @pls.` in AppleScript. Parsing stops at the first line that isn't a comment
 or blank.
 
 ```bash
 #!/bin/zsh
-# @quick.name: Kill process on port
-# @quick.description: Kill whatever process is listening on a TCP port
-# @quick.param port: int(1...65535) -- TCP port number
-# @quick.example: free up port 3000
-# @quick.example: something is stuck on 8080
-lsof -ti tcp:$QUICK_PORT | xargs kill
+# @pls.name: Kill process on port
+# @pls.description: Kill whatever process is listening on a TCP port
+# @pls.param port: int(1...65535) -- TCP port number
+# @pls.example: free up port 3000
+# @pls.example: something is stuck on 8080
+lsof -ti tcp:$PLS_PORT | xargs kill
 ```
 
 ```applescript
--- @quick.description: Switch the system appearance between dark and light
--- @quick.param mode: enum(dark|light|toggle) = toggle -- Desired appearance
--- @quick.example: it's too bright
+-- @pls.description: Switch the system appearance between dark and light
+-- @pls.param mode: enum(dark|light|toggle) = toggle -- Desired appearance
+-- @pls.example: it's too bright
 on run argv
     set mode to item 1 of argv
     ...
@@ -125,7 +129,7 @@ params:
 
 ### 3.3 Shortcuts (opt-in)
 
-Only Shortcuts listed in `shortcuts.yaml` are part of the library. Manage the file by hand or with `quick shortcuts add/remove`.
+Only Shortcuts listed in `shortcuts.yaml` are part of the library. Manage the file by hand or with `pls shortcuts add/remove`.
 
 ```yaml
 - shortcut: Set Focus            # exact name in the Shortcuts app
@@ -155,28 +159,28 @@ Only Shortcuts listed in `shortcuts.yaml` are part of the library. Manage the fi
 ### 4.2 Header param syntax
 
 ```
-@quick.param <name>: <type>[?] [= <default>] [-- <description>]
+@pls.param <name>: <type>[?] [= <default>] [-- <description>]
 ```
 
 - `<name>`: lowercase letters, digits and `_`.
 - No default → **required**. A `?` after the type → optional with no default (e.g. `string?`).
 - The default is everything between `=` and ` -- `, trimmed; surrounding quotes are removed.
-- Reserved names: `yes`, `dry_run`, `help`.
+- Reserved names: `yes`, `dry_run`, `help` (CLI flags) and `id`, `home`, `automation_dir` (their `PLS_` variables are set by pls).
 
 ### 4.3 Binding order
 
 Final values are built in this order (later wins): defaults → model output (NL only) → CLI arguments → interactive edits.
 Values are then validated against their type. A required param that's still missing triggers a prompt
-when running in a terminal; otherwise quick exits with code 64.
+when running in a terminal; otherwise pls exits with code 64.
 
 ## 5. Execution
 
 Scripts run in the user's **current directory**, with stdin/stdout/stderr attached, so interactive scripts work.
-quick exits with the script's exit code.
+pls exits with the script's exit code.
 
 Environment for all kinds:
-- `QUICK_<NAME>` for every param, with the name in uppercase (`QUICK_PORT=3000`). Optional params with no value are unset.
-- `QUICK_ID`, and for folder automations `QUICK_AUTOMATION_DIR` (where its files live).
+- `PLS_<NAME>` for every param, with the name in uppercase (`PLS_PORT=3000`). Optional params with no value are unset.
+- `PLS_ID`, and for folder automations `PLS_AUTOMATION_DIR` (where its files live).
 
 | Kind | How it's run |
 |---|---|
@@ -187,18 +191,18 @@ Environment for all kinds:
 ## 6. CLI
 
 ```
-quick list [--json]                    # id, name, kind, description
-quick show <id>                        # full details, params, source path
-quick run <id> [values…] [--<param> <value>…] [--yes] [--dry-run]
-quick <id> [values…]                   # same as run
-quick "<request>" [--yes] [--dry-run]  # natural language
-quick again                            # re-run the last run with the same params
-quick history [-n 20]
-quick shortcuts list                   # all Shortcuts, marking the ones enabled
-quick shortcuts add "<name>"           # append an entry to shortcuts.yaml
-quick shortcuts remove <id>
-quick doctor
-quick completion zsh
+pls list [--json]                      # id, name, kind, description
+pls show <id>                          # full details, params, source path
+pls run <id> [values…] [--<param> <value>…] [--yes] [--dry-run]
+pls <id> [values…]                     # same as run
+pls "<request>" [--yes] [--dry-run]    # natural language
+pls again                              # re-run the last run with the same params
+pls history [-n 20]
+pls shortcuts list                     # all Shortcuts, marking the ones enabled
+pls shortcuts add "<name>"             # append an entry to shortcuts.yaml
+pls shortcuts remove <id>
+pls doctor
+pls completion zsh
 ```
 
 **Dispatch:** a known subcommand wins → else the first argument is an automation id → else all arguments joined
@@ -247,14 +251,14 @@ Then the values are merged and validated (§4.3), missing required values are pr
 
 ## 8. History
 
-Every run appends one JSON line to `history.jsonl`:
+Every run appends one JSON line to `~/.local/state/pls/history.jsonl`:
 
 ```json
 {"at":"2026-11-04T19:30:00Z","id":"kill-port","params":{"port":"3000"},"source":"nl",
  "request":"something is stuck on 3000","edited":false,"exit":0,"seconds":0.4}
 ```
 
-`quick again` re-runs the last entry with the same params, without asking the model again. Saving `request` and
+`pls again` re-runs the last entry with the same params, without asking the model again. Saving `request` and
 `edited` now makes "learn from accepted picks" possible later without a migration.
 
 ## 9. Doctor
@@ -281,14 +285,14 @@ Swift package, macOS 26+. Dependencies: `swift-argument-parser`, `Yams`.
 
 ```
 Sources/
-  QuickCore/              # no terminal or UI code, so a future GUI can reuse it
+  PlsCore/                # no terminal or UI code, so a future GUI can reuse it
     Model/                # Automation, Param, ParamType, ParamValue
     Library/              # HeaderParser, ManifestParser, ShortcutsRegistry, Library (merges sources)
     Resolve/              # ParamBinder (defaults/CLI/model → validated values), NLResolver, FuzzyMatcher
     Run/                  # Runner protocol; ShellRunner, AppleScriptRunner, ShortcutRunner
     History/
-  quick/                  # CLI: dispatch, prompts, plan display, completion
-Tests/QuickCoreTests/     # parsers, binder, dispatch, runners (with fixture scripts)
+  pls/                    # CLI: dispatch, prompts, plan display, completion
+Tests/PlsCoreTests/       # parsers, binder, dispatch, runners (with fixture scripts)
 Evals/                    # NL eval set + runner, ported from poc/ (not run in `swift test`)
 ```
 
@@ -304,6 +308,6 @@ Dispatch (§6) happens before ArgumentParser, which handles the subcommands them
 
 ## 12. Later
 
-Raycast script format, learning from accepted picks (history → extra examples), project-local `.quick/`,
+Raycast script format, learning from accepted picks (history → extra examples), project-local `.pls/`,
 JXA, candidate narrowing for large libraries, multi-step workflows, triggers, GUI launcher,
 and script generation with a bigger model (Private Cloud Compute or an external provider).

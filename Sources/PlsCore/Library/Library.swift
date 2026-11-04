@@ -17,12 +17,21 @@ public struct Library: Sendable {
         automations.first { $0.id == id }
     }
 
-    /// `$QUICK_HOME`, or `~/.quick`.
+    /// `$PLS_HOME`, else `$XDG_CONFIG_HOME/pls`, else `~/.config/pls`.
     public static func defaultHome(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
-        if let path = environment["QUICK_HOME"], !path.isEmpty {
-            return URL(filePath: (path as NSString).expandingTildeInPath, directoryHint: .isDirectory)
+        func directory(_ path: String) -> URL {
+            URL(filePath: (path as NSString).expandingTildeInPath, directoryHint: .isDirectory)
         }
-        return FileManager.default.homeDirectoryForCurrentUser.appending(path: ".quick", directoryHint: .isDirectory)
+        if let path = environment["PLS_HOME"], !path.isEmpty {
+            return directory(path)
+        }
+        if let config = environment["XDG_CONFIG_HOME"], !config.isEmpty {
+            return directory(config).appending(path: "pls", directoryHint: .isDirectory)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.appending(
+            path: ".config/pls",
+            directoryHint: .isDirectory
+        )
     }
 
     public static func load(home: URL) -> Library {

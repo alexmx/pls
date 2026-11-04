@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import QuickCore
+import PlsCore
 
 struct DoctorCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -9,7 +9,7 @@ struct DoctorCommand: ParsableCommand {
 
     func run() throws {
         let library = Library.loadDefault()
-        let problems = Doctor.check(library, commandNames: QuickCommand.commandNames)
+        let problems = Doctor.check(library, commandNames: PlsCommand.commandNames)
         print("Library: \(displayPath(library.automationsDirectory))")
 
         guard !problems.isEmpty else {
@@ -42,7 +42,7 @@ struct DoctorCommand: ParsableCommand {
 
 /// The file's path inside the library folder, or its full display path if it's elsewhere.
 private func relativePath(_ file: URL, to directory: URL) -> String {
-    // Resolve both: listings return /private/tmp/… while $QUICK_HOME may say /tmp/….
+    // Resolve both: listings return /private/tmp/… while $PLS_HOME may say /tmp/….
     let base = directory.resolvingSymlinksInPath().path + "/"
     let path = file.resolvingSymlinksInPath().path
     return path.hasPrefix(base) ? String(path.dropFirst(base.count)) : displayPath(file)

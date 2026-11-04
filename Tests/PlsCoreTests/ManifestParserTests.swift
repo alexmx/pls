@@ -1,4 +1,4 @@
-@testable import QuickCore
+@testable import PlsCore
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))

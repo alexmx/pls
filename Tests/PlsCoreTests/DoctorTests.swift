@@ -1,14 +1,14 @@
 import Foundation
-@testable import QuickCore
+@testable import PlsCore
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))
 struct DoctorTests {
     @Test func healthyLibraryHasNoProblems() throws {
         let home = try TempHome()
-        try home.write("a.sh", "#!/bin/zsh\n# @quick.description: A\n")
-        try home.write("b.sh", "# @quick.description: B\n", executable: true)
-        try home.write("c.applescript", "-- @quick.description: C\n")
+        try home.write("a.sh", "#!/bin/zsh\n# @pls.description: A\n")
+        try home.write("b.sh", "# @pls.description: B\n", executable: true)
+        try home.write("c.applescript", "-- @pls.description: C\n")
         try home.write("d/manifest.yaml", "description: D\nentry: run.sh\n")
         try home.write("d/run.sh", "#!/bin/zsh\n")
 
@@ -17,7 +17,7 @@ struct DoctorTests {
 
     @Test func includesLoadingProblems() throws {
         let home = try TempHome()
-        try home.write("bad.sh", "# @quick.param x: nope\n")
+        try home.write("bad.sh", "# @pls.param x: nope\n")
         let library = Library.load(home: home.url)
         #expect(Doctor.check(library, commandNames: []) == library.diagnostics)
         #expect(!library.diagnostics.isEmpty)
@@ -25,9 +25,9 @@ struct DoctorTests {
 
     @Test func idThatIsACommand() throws {
         let home = try TempHome()
-        let file = try home.write("list.sh", "#!/bin/zsh\n# @quick.description: x\n")
+        let file = try home.write("list.sh", "#!/bin/zsh\n# @pls.description: x\n")
         #expect(Doctor.check(Library.load(home: home.url), commandNames: ["list"]) == [
-            Diagnostic(.warning, "id list is also a command; run it with `quick run list`", file: file)
+            Diagnostic(.warning, "id list is also a command; run it with `pls run list`", file: file)
         ])
     }
 

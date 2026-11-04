@@ -1,4 +1,4 @@
-# xc configuration for quick: a Swift package, driven through SwiftPM.
+# xc configuration for pls: a Swift package, driven through SwiftPM.
 # Run `xc list` to see all commands.
 
 commands:
@@ -25,6 +25,6 @@ commands:
   verify:
     run: "xc format:check && xc lint && xc build && xc test"
 
-  # Run the CLI. Example: xc quick -- list
-  quick:
-    run: "swift run quick"
+  # Run the CLI. Example: xc pls -- list
+  pls:
+    run: "swift run pls"

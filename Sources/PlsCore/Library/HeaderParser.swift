@@ -1,6 +1,6 @@
 import Foundation
 
-/// Reads the `@quick.` comment header at the top of a single-file automation (SPEC §3.1, §4.2).
+/// Reads the `@pls.` comment header at the top of a single-file automation (SPEC §3.1, §4.2).
 ///
 /// The header is the run of comment and blank lines after an optional shebang; parsing stops at the first
 /// line of code. Diagnostics carry 1-based line numbers but no file; the caller adds that.
@@ -23,13 +23,13 @@ public enum HeaderParser {
             }
             guard line.hasPrefix(commentPrefix) else { break }
             let comment = line.dropFirst(commentPrefix.count).trimmingCharacters(in: .whitespaces)
-            guard comment.hasPrefix("@quick.") else { continue }
+            guard comment.hasPrefix("@pls.") else { continue }
 
             let lineNumber = index + 1
             func report(_ severity: Diagnostic.Severity, _ message: String) {
                 result.diagnostics.append(Diagnostic(severity, message, line: lineNumber))
             }
-            let entry = comment.dropFirst("@quick.".count)
+            let entry = comment.dropFirst("@pls.".count)
             let key = String(entry.prefix { $0.isLetter || $0 == "_" })
             let rest = entry.dropFirst(key.count)
 
@@ -48,24 +48,24 @@ public enum HeaderParser {
             }
 
             guard rest.first == ":" else {
-                report(.error, "expected \"@quick.\(key): <value>\"")
+                report(.error, "expected \"@pls.\(key): <value>\"")
                 continue
             }
             let value = rest.dropFirst().trimmingCharacters(in: .whitespaces)
             guard !value.isEmpty else {
-                report(.error, "@quick.\(key) has no value")
+                report(.error, "@pls.\(key) has no value")
                 continue
             }
             switch key {
             case "name":
                 if sawName {
-                    report(.warning, "@quick.name is set twice; the last one wins")
+                    report(.warning, "@pls.name is set twice; the last one wins")
                 }
                 sawName = true
                 result.metadata.name = value
             case "description":
                 if sawDescription {
-                    report(.warning, "@quick.description is set twice; the last one wins")
+                    report(.warning, "@pls.description is set twice; the last one wins")
                 }
                 sawDescription = true
                 result.metadata.description = value
@@ -73,12 +73,12 @@ public enum HeaderParser {
                 result.metadata.examples.append(value)
             case "confirm":
                 guard let flag = Bool(value) else {
-                    report(.error, "@quick.confirm must be true or false")
+                    report(.error, "@pls.confirm must be true or false")
                     continue
                 }
                 result.metadata.confirm = flag
             default:
-                report(.warning, "unknown key @quick.\(key)")
+                report(.warning, "unknown key @pls.\(key)")
             }
         }
         return result
@@ -87,7 +87,7 @@ public enum HeaderParser {
     /// `<name>: <type>[?] [= <default>] [-- <description>]`; the description separator needs a space on both sides.
     static func parseParam(_ text: String) throws(ParamError) -> Param {
         guard let colon = text.firstIndex(of: ":") else {
-            throw ParamError("expected \"@quick.param <name>: <type>\"")
+            throw ParamError("expected \"@pls.param <name>: <type>\"")
         }
         let name = text[..<colon].trimmingCharacters(in: .whitespaces)
         var rest = Substring(text[text.index(after: colon)...])

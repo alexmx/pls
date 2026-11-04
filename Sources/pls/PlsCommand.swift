@@ -1,13 +1,13 @@
 import ArgumentParser
 import Foundation
-import QuickCore
+import PlsCore
 
 @main
-struct QuickCommand: ParsableCommand {
+struct PlsCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "quick",
+        commandName: "pls",
         abstract: "Run your own automations: shell scripts, AppleScript and Shortcuts.",
-        version: Quick.version,
+        version: Pls.version,
         subcommands: [ListCommand.self, ShowCommand.self, DoctorCommand.self]
     )
 
@@ -28,7 +28,7 @@ extension Library {
     }
 }
 
-/// `/Users/me/.quick/x` → `~/.quick/x`.
+/// `/Users/me/.config/pls` → `~/.config/pls`.
 func displayPath(_ url: URL) -> String {
     let home = FileManager.default.homeDirectoryForCurrentUser.path
     let path = url.path

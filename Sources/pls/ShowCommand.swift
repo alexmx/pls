@@ -1,5 +1,5 @@
 import ArgumentParser
-import QuickCore
+import PlsCore
 
 struct ShowCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "show", abstract: "Show one automation in detail.")
@@ -12,7 +12,7 @@ struct ShowCommand: ParsableCommand {
         guard let automation = library.automation(id: id) else {
             printError("No automation with id \(id).")
             if library.diagnostics.contains(where: { $0.file?.deletingPathExtension().lastPathComponent == id }) {
-                printError("A file named \(id) has problems; run `quick doctor`.")
+                printError("A file named \(id) has problems; run `pls doctor`.")
             }
             throw Exit.notFound
         }

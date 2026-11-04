@@ -1,11 +1,11 @@
 import Foundation
 
-/// A throwaway quick home in the temp directory, removed when the value is released.
+/// A throwaway pls home in the temp directory, removed when the value is released.
 final class TempHome {
     let url: URL
 
     init() throws {
-        let raw = FileManager.default.temporaryDirectory.appending(path: "quick-tests-\(UUID().uuidString)")
+        let raw = FileManager.default.temporaryDirectory.appending(path: "pls-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(
             at: raw.appending(path: "automations"), withIntermediateDirectories: true
         )

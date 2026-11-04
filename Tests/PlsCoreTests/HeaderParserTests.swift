@@ -1,4 +1,4 @@
-@testable import QuickCore
+@testable import PlsCore
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))
@@ -8,13 +8,13 @@ struct HeaderParserTests {
     @Test func readsAllKeysFromAShellHeader() throws {
         let result = HeaderParser.parse("""
         #!/bin/zsh
-        # @quick.name: Kill process on port
-        # @quick.description: Kill whatever is listening on a TCP port
-        # @quick.param port: int(1...65535) -- TCP port number
-        # @quick.example: free up port 3000
-        # @quick.example: something is stuck on 8080
-        # @quick.confirm: true
-        lsof -ti tcp:$QUICK_PORT | xargs kill
+        # @pls.name: Kill process on port
+        # @pls.description: Kill whatever is listening on a TCP port
+        # @pls.param port: int(1...65535) -- TCP port number
+        # @pls.example: free up port 3000
+        # @pls.example: something is stuck on 8080
+        # @pls.confirm: true
+        lsof -ti tcp:$PLS_PORT | xargs kill
         """, commentPrefix: "#")
 
         #expect(result.diagnostics.isEmpty)
@@ -34,8 +34,8 @@ struct HeaderParserTests {
 
     @Test func readsAnAppleScriptHeader() {
         let result = HeaderParser.parse("""
-        -- @quick.description: Switch appearance
-        -- @quick.param mode: enum(dark|light|toggle) = toggle
+        -- @pls.description: Switch appearance
+        -- @pls.param mode: enum(dark|light|toggle) = toggle
         on run argv
         end run
         """, commentPrefix: "--")
@@ -47,11 +47,11 @@ struct HeaderParserTests {
 
     @Test func stopsAtTheFirstLineOfCode() {
         let result = HeaderParser.parse("""
-        # @quick.description: first
+        # @pls.description: first
         
         # plain comment
         echo hi
-        # @quick.description: too late
+        # @pls.description: too late
         """, commentPrefix: "#")
 
         #expect(result.metadata.description == "first")
@@ -65,22 +65,22 @@ struct HeaderParserTests {
     }
 
     @Test func unknownKeyIsAWarning() {
-        let result = HeaderParser.parse("# @quick.icon: 🔥\n", commentPrefix: "#")
-        #expect(result.diagnostics == [Diagnostic(.warning, "unknown key @quick.icon", line: 1)])
+        let result = HeaderParser.parse("# @pls.icon: 🔥\n", commentPrefix: "#")
+        #expect(result.diagnostics == [Diagnostic(.warning, "unknown key @pls.icon", line: 1)])
     }
 
     @Test func repeatedDescriptionWarnsAndLastWins() {
-        let result = HeaderParser.parse("# @quick.description: a\n# @quick.description: b\n", commentPrefix: "#")
+        let result = HeaderParser.parse("# @pls.description: a\n# @pls.description: b\n", commentPrefix: "#")
         #expect(result.metadata.description == "b")
         #expect(result.diagnostics.map(\.severity) == [.warning])
         #expect(result.diagnostics.first?.line == 2)
     }
 
     @Test(arguments: [
-        ("# @quick.description:", "@quick.description has no value"),
-        ("# @quick.description Missing colon", "expected \"@quick.description: <value>\""),
-        ("# @quick.confirm: yes", "@quick.confirm must be true or false"),
-        ("# @quick.param a: int\n# @quick.param a: string", "param \"a\" is declared twice")
+        ("# @pls.description:", "@pls.description has no value"),
+        ("# @pls.description Missing colon", "expected \"@pls.description: <value>\""),
+        ("# @pls.confirm: yes", "@pls.confirm must be true or false"),
+        ("# @pls.param a: int\n# @pls.param a: string", "param \"a\" is declared twice")
     ])
     func keyErrors(header: String, message: String) {
         let errors = HeaderParser.parse(header, commentPrefix: "#").diagnostics.filter { $0.severity == .error }
@@ -88,7 +88,7 @@ struct HeaderParserTests {
     }
 
     @Test func badParamIsReportedWithItsLine() {
-        let result = HeaderParser.parse("#!/bin/zsh\n# @quick.param size: huge\n", commentPrefix: "#")
+        let result = HeaderParser.parse("#!/bin/zsh\n# @pls.param size: huge\n", commentPrefix: "#")
         #expect(result.metadata.params.isEmpty)
         #expect(result.diagnostics.map(\.line) == [2])
         #expect(result.diagnostics.map(\.severity) == [.error])
@@ -120,6 +120,9 @@ struct HeaderParserTests {
         "no colon here",
         "Port: int",
         "help: bool",
+        "id: string",
+        "home: path",
+        "automation_dir: path",
         "port:",
         "port: integer",
         "port: string(5)",

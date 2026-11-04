@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import QuickCore
+import PlsCore
 
 struct ListCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "list", abstract: "List your automations.")
@@ -22,7 +22,7 @@ struct ListCommand: ParsableCommand {
         if broken > 0 {
             printError(
                 "\(broken) automation\(broken == 1 ? " has" : "s have") problems and \(broken == 1 ? "is" : "are") "
-                    + "left out; run `quick doctor`."
+                    + "left out; run `pls doctor`."
             )
         }
     }

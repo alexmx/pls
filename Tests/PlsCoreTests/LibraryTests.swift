@@ -1,13 +1,13 @@
 import Foundation
-@testable import QuickCore
+@testable import PlsCore
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))
 struct LibraryTests {
     @Test func loadsBothFormats() throws {
         let home = try TempHome()
-        let script = try home.write("kill-port.sh", "#!/bin/zsh\n# @quick.description: Kill a port\nlsof\n")
-        let appleScript = try home.write("dark-mode.applescript", "-- @quick.description: Dark mode\non run\nend run\n")
+        let script = try home.write("kill-port.sh", "#!/bin/zsh\n# @pls.description: Kill a port\nlsof\n")
+        let appleScript = try home.write("dark-mode.applescript", "-- @pls.description: Dark mode\non run\nend run\n")
         try home.write("compress-images/manifest.yaml", "description: Compress\nentry: run.sh\n")
         let entry = try home.write("compress-images/run.sh", "#!/bin/zsh\n")
         try home.write("compiled/manifest.yaml", "entry: script.scpt\n")
@@ -35,7 +35,7 @@ struct LibraryTests {
     }
 
     @Test func missingHomeIsAnEmptyLibrary() {
-        let library = Library.load(home: URL(filePath: "/nonexistent/quick-home"))
+        let library = Library.load(home: URL(filePath: "/nonexistent/pls-home"))
         #expect(library.automations.isEmpty)
         #expect(library.diagnostics.isEmpty)
     }
@@ -48,7 +48,7 @@ struct LibraryTests {
 
     @Test func automationWithAnErrorIsLeftOutAndReportedWithItsFile() throws {
         let home = try TempHome()
-        let file = try home.write("bad.sh", "# @quick.param size: huge\n")
+        let file = try home.write("bad.sh", "# @pls.param size: huge\n")
         try home.write("good.sh", "")
 
         let library = Library.load(home: home.url)
@@ -60,7 +60,7 @@ struct LibraryTests {
 
     @Test func warningsKeepTheAutomation() throws {
         let home = try TempHome()
-        try home.write("x.sh", "# @quick.icon: fire\n")
+        try home.write("x.sh", "# @pls.icon: fire\n")
         let library = Library.load(home: home.url)
         #expect(library.automations.map(\.id) == ["x"])
         #expect(library.diagnostics.map(\.severity) == [.warning])
@@ -107,8 +107,10 @@ struct LibraryTests {
         ])
     }
 
-    @Test func homeComesFromQuickHome() {
-        #expect(Library.defaultHome(environment: ["QUICK_HOME": "/tmp/q"]).path == "/tmp/q")
-        #expect(Library.defaultHome(environment: [:]).lastPathComponent == ".quick")
+    @Test func homeComesFromPlsHomeThenXDGConfigHome() {
+        let both = ["PLS_HOME": "/tmp/p", "XDG_CONFIG_HOME": "/tmp/config"]
+        #expect(Library.defaultHome(environment: both).path == "/tmp/p")
+        #expect(Library.defaultHome(environment: ["XDG_CONFIG_HOME": "/tmp/config"]).path == "/tmp/config/pls")
+        #expect(Library.defaultHome(environment: [:]).path.hasSuffix("/.config/pls"))
     }
 }

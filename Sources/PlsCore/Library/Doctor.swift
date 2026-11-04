@@ -1,8 +1,8 @@
 import Foundation
 
-/// Everything `quick doctor` reports (SPEC §9): loading problems plus checks on the automations that loaded.
+/// Everything `pls doctor` reports (SPEC §9): loading problems plus checks on the automations that loaded.
 public enum Doctor {
-    /// - Parameter commandNames: CLI subcommands; an automation with one of these ids can't be run as `quick <id>`.
+    /// - Parameter commandNames: CLI subcommands; an automation with one of these ids can't be run as `pls <id>`.
     public static func check(_ library: Library, commandNames: Set<String>) -> [Diagnostic] {
         var found = library.diagnostics
         for automation in library.automations {
@@ -10,7 +10,7 @@ public enum Doctor {
             if commandNames.contains(automation.id) {
                 found.append(Diagnostic(
                     .warning,
-                    "id \(automation.id) is also a command; run it with `quick run \(automation.id)`",
+                    "id \(automation.id) is also a command; run it with `pls run \(automation.id)`",
                     file: file
                 ))
             }
