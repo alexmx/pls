@@ -7,8 +7,11 @@ let package = Package(
     products: [
         .executable(name: "quick", targets: ["quick"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.0")
+    ],
     targets: [
-        .target(name: "QuickCore"),
+        .target(name: "QuickCore", dependencies: ["Yams"]),
         .executableTarget(name: "quick", dependencies: ["QuickCore"]),
         .testTarget(name: "QuickCoreTests", dependencies: ["QuickCore"])
     ]
