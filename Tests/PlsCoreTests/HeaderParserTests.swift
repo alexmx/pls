@@ -58,6 +58,15 @@ struct HeaderParserTests {
         #expect(result.diagnostics.isEmpty)
     }
 
+    @Test func readsAHeaderWithWindowsLineEndings() {
+        let result = HeaderParser.parse(
+            "#!/bin/zsh\r\n# @pls.description: CRLF\r\n# @pls.param size: huge\r\necho hi\r\n", commentPrefix: "#"
+        )
+        #expect(result.metadata.description == "CRLF")
+        #expect(result.diagnostics.map(\.line) == [3])
+        #expect(result.diagnostics.map(\.severity) == [.error])
+    }
+
     @Test func emptyHeaderGivesEmptyMetadata() {
         let result = HeaderParser.parse("#!/bin/sh\necho hi\n", commentPrefix: "#")
         #expect(result.metadata == Metadata())

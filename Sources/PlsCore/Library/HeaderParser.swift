@@ -13,7 +13,9 @@ public enum HeaderParser {
     public static func parse(_ text: String, commentPrefix: String) -> Result {
         var result = Result()
         var sawName = false, sawDescription = false
-        for (index, rawLine) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+        // isNewline, not "\n": in Swift "\r\n" is a single Character, so CRLF files would never split.
+        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        for (index, rawLine) in lines.enumerated() {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             if index == 0, line.hasPrefix("#!") {
                 continue

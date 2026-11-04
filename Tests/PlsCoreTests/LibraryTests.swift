@@ -34,10 +34,19 @@ struct LibraryTests {
         #expect(Library.load(home: home.url).automation(id: "x")?.kind == .applescript)
     }
 
-    @Test func missingHomeIsAnEmptyLibrary() {
+    @Test func missingFolderIsAnEmptyLibraryWithAWarning() {
         let library = Library.load(home: URL(filePath: "/nonexistent/pls-home"))
         #expect(library.automations.isEmpty)
-        #expect(library.diagnostics.isEmpty)
+        #expect(library.diagnostics.map(\.severity) == [.warning])
+        #expect(library.diagnostics.first?.file == library.automationsDirectory)
+    }
+
+    @Test func unreadableFolderIsAnError() throws {
+        let home = try TempHome()
+        try FileManager.default.removeItem(at: home.url.appending(path: "automations"))
+        try "not a folder".write(to: home.url.appending(path: "automations"), atomically: true, encoding: .utf8)
+        let library = Library.load(home: home.url)
+        #expect(library.diagnostics.map(\.severity) == [.error])
     }
 
     @Test func skipsHiddenFiles() throws {

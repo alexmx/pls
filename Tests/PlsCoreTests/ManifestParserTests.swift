@@ -93,6 +93,16 @@ struct ManifestParserTests {
         ("name: x\n", "missing entry (the script file to run)"),
         ("entry: run.sh\nkind: python\n", "kind must be shell or applescript"),
         ("entry: run.sh\nconfirm: maybe\n", "confirm must be true or false"),
+        ("entry: run.sh\nconfirm: yes\n", "confirm must be true or false"),
+        ("entry: run.sh\nparams:\n  - {name: a, type: int, optional: yes}\n", "optional must be true or false"),
+        (
+            "entry: run.sh\nparams:\n  - {name: a, type: string, default: [x, y]}\n",
+            "default for a must be a single value; use \"\" for empty text"
+        ),
+        (
+            "entry: run.sh\nparams:\n  - name: a\n    type: string\n    default:\n",
+            "default for a must be a single value; use \"\" for empty text"
+        ),
         ("entry: run.sh\ndescription: [a, b]\n", "description must be non-empty text"),
         ("entry: run.sh\nexamples: hello\n", "examples must be a list"),
         ("entry: run.sh\nparams: {a: 1}\n", "params must be a list"),
@@ -143,6 +153,12 @@ struct ManifestParserTests {
     func errors(yaml: String, message: String) {
         let errors = ManifestParser.parse(yaml).diagnostics.filter { $0.severity == .error }
         #expect(errors.map(\.message) == [message])
+    }
+
+    @Test func quotedEmptyDefaultIsEmptyText() {
+        let result = ManifestParser.parse("entry: run.sh\nparams:\n  - {name: body, type: string, default: \"\"}\n")
+        #expect(result.diagnostics.isEmpty)
+        #expect(result.metadata.params.map(\.requirement) == [.defaultValue("")])
     }
 
     @Test func invalidYAMLIsAnError() {

@@ -51,7 +51,7 @@ public enum ManifestParser {
                     }
                     result.kind = kind
                 case "confirm":
-                    guard let flag = value.scalar.flatMap(Bool.construct) else {
+                    guard let flag = strictBool(value) else {
                         error("confirm must be true or false", at: value)
                         continue
                     }
@@ -106,10 +106,16 @@ public enum ManifestParser {
             }
             do throws(ParamError) {
                 let type = try paramType(typeName, fields)
-                let defaultValue = fields["default"].flatMap { $0.null == nil ? $0.string : nil }
+                var defaultValue: String?
+                if let node = fields["default"] {
+                    guard node.scalar != nil, node.null == nil, let value = node.string else {
+                        throw ParamError("default for \(name) must be a single value; use \"\" for empty text")
+                    }
+                    defaultValue = value
+                }
                 var isOptional = false
                 if let node = fields["optional"] {
-                    guard let flag = node.scalar.flatMap(Bool.construct) else {
+                    guard let flag = strictBool(node) else {
                         throw ParamError("optional must be true or false")
                     }
                     isOptional = flag
@@ -171,6 +177,15 @@ public enum ManifestParser {
         static let paramKeys: Set = ["name", "type", "default", "optional", "description", "min", "max", "options"]
 
         // MARK: helpers
+
+        /// Only `true` / `false`, as in headers (SPEC §4.1); YAML's `yes` / `on` are not accepted.
+        func strictBool(_ node: Node) -> Bool? {
+            switch node.scalar?.string {
+            case "true": true
+            case "false": false
+            default: nil
+            }
+        }
 
         mutating func text(_ node: Node, _ key: String) -> String? {
             guard node.scalar != nil, node.null == nil, let value = node.string, !value.isEmpty else {

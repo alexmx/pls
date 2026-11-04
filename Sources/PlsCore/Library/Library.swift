@@ -37,9 +37,20 @@ public struct Library: Sendable {
     public static func load(home: URL) -> Library {
         let directory = automationsDirectory(in: home)
         var loader = Loader()
-        let entries = (try? FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles
-        )) ?? []
+        let entries: [URL]
+        do {
+            entries = try FileManager.default.contentsOfDirectory(
+                at: directory, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+            )
+        } catch {
+            // A missing folder is normal before the first automation; anything else (permissions, a file
+            // in its place) is a real problem. Either way, say so rather than look like an empty library.
+            let missing = !FileManager.default.fileExists(atPath: directory.path)
+            loader.diagnostics.append(missing
+                ? Diagnostic(.warning, "folder doesn't exist; create it and add automations there", file: directory)
+                : Diagnostic(.error, "can't read the folder: \(error.localizedDescription)", file: directory))
+            entries = []
+        }
         for url in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             loader.load(url)
         }
