@@ -140,6 +140,11 @@ struct HeaderParserTests {
 
     // MARK: model
 
+    @Test(arguments: ["string", "path", "bool", "int", "int(1...100)", "number", "number(0...1.5)", "enum(png|jpg)"])
+    func typeDescriptionRoundTrips(spec: String) throws {
+        #expect(try HeaderParser.parseType(spec).description == spec)
+    }
+
     @Test func defaultNameComesFromTheID() {
         let automation = Automation(
             id: "kill-port", kind: .shell, source: .file(.init(filePath: "/x")), metadata: Metadata()

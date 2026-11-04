@@ -1,0 +1,22 @@
+name: Compress images
+description: Re-encode images in a folder at lower quality to reduce file size
+entry: run.sh
+examples:
+  - shrink my screenshots
+  - make the jpgs on my desktop smaller
+params:
+  - name: folder
+    type: path
+    default: ~/Desktop
+    description: Folder containing the images
+  - name: quality
+    type: int
+    min: 1
+    max: 100
+    default: 80
+    description: Output quality percent
+  - name: format
+    type: enum
+    options: [jpg, heic]
+    default: jpg
+    description: Which image type to compress

@@ -38,6 +38,25 @@ public struct ParamError: Error, Equatable, CustomStringConvertible {
     }
 }
 
+extension ParamType: CustomStringConvertible {
+    /// The header syntax: `int(1...100)`, `enum(png|jpg)`, `path`.
+    public var description: String {
+        switch self {
+        case .string: "string"
+        case .path: "path"
+        case .bool: "bool"
+        case let .int(range): range.map { "int(\($0.lowerBound)...\($0.upperBound))" } ?? "int"
+        case let .number(range): range.map { "number(\(trim($0.lowerBound))...\(trim($0.upperBound)))" } ?? "number"
+        case let .enum(options): "enum(\(options.joined(separator: "|")))"
+        }
+    }
+
+    /// 1.0 → "1", 0.5 → "0.5".
+    private func trim(_ value: Double) -> String {
+        value == value.rounded() && abs(value) < 1e15 ? String(Int(value)) : String(value)
+    }
+}
+
 public enum ParamType: Sendable, Equatable {
     case string
     case path
