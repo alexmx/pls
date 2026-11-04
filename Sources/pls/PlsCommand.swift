@@ -8,7 +8,7 @@ struct PlsCommand: ParsableCommand {
         commandName: "pls",
         abstract: "Run your own automations: shell scripts, AppleScript and Shortcuts.",
         version: Pls.version,
-        subcommands: [ListCommand.self, ShowCommand.self, RunCommand.self, DoctorCommand.self]
+        subcommands: [ListCommand.self, ShowCommand.self, RunCommand.self, HistoryCommand.self, DoctorCommand.self]
     )
 }
 
