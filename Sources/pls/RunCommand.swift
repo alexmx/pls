@@ -26,16 +26,28 @@ struct RunCommand: ParsableCommand {
 
     func run() throws {
         let automation = try Library.loadDefault().require(id)
-        let binding: Binding
+        var binding: Binding
         do {
             binding = try ParamBinder.bind(automation, arguments: values)
         } catch {
             printError("pls: \(error)")
             throw Exit.usage
         }
+
         if !binding.missing.isEmpty {
-            printError("pls: missing \(binding.missing.map { "--\($0.name)" }.joined(separator: ", "))")
-            throw Exit.usage
+            guard Prompt.isInteractive else {
+                let names = binding.missing.map { "--\($0.name)" }.joined(separator: ", ")
+                printError("pls: missing \(names); give it on the command line (there's no terminal to ask in)")
+                throw Exit.usage
+            }
+            try Prompt.fillMissing(&binding)
+        }
+        if automation.confirm, !yes, !dryRun {
+            guard Prompt.isInteractive else {
+                printError("pls: \(automation.id) asks before running; pass --yes to run it without a terminal")
+                throw Exit.usage
+            }
+            guard Prompt.confirm(binding) else { throw Exit.cancelled }
         }
 
         let invocation = Invocation(binding)
