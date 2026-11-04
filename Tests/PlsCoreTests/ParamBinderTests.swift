@@ -1,0 +1,138 @@
+import Foundation
+@testable import PlsCore
+import Testing
+
+/// An automation whose params are written the way a header would declare them.
+func makeAutomation(_ id: String = "test", params: String...) throws -> Automation {
+    var metadata = Metadata()
+    for line in params {
+        try metadata.add(HeaderParser.parseParam(line))
+    }
+    return Automation(id: id, kind: .shell, source: .file(URL(filePath: "/tmp/\(id).sh")), metadata: metadata)
+}
+
+@Suite(.timeLimit(.minutes(1)))
+struct ParamBinderTests {
+    let compress: Automation
+
+    init() throws {
+        self.compress = try makeAutomation(
+            "compress",
+            params: "folder: path = ~/Desktop", "quality: int(1...100) = 80", "format: enum(jpg|heic) = jpg"
+        )
+    }
+
+    private func bind(_ automation: Automation, _ arguments: String...) throws -> [String: BoundValue] {
+        try ParamBinder.bind(automation, arguments: arguments).values
+    }
+
+    @Test func defaultsWhenNothingIsGiven() throws {
+        #expect(try bind(compress) == [
+            "folder": BoundValue("~/Desktop", .defaultValue),
+            "quality": BoundValue("80", .defaultValue),
+            "format": BoundValue("jpg", .defaultValue)
+        ])
+    }
+
+    @Test func positionalValuesFillParamsInOrder() throws {
+        #expect(try bind(compress, "~/Pictures", "40") == [
+            "folder": BoundValue("~/Pictures", .given),
+            "quality": BoundValue("40", .given),
+            "format": BoundValue("jpg", .defaultValue)
+        ])
+    }
+
+    @Test(arguments: [
+        ["--quality", "40"],
+        ["--quality=40"]
+    ])
+    func namedValues(arguments: [String]) throws {
+        #expect(try ParamBinder.bind(compress, arguments: arguments).values["quality"] == BoundValue("40", .given))
+    }
+
+    @Test func positionalValuesSkipParamsGivenByName() throws {
+        let values = try bind(compress, "--folder", "/x", "55", "heic")
+        #expect(values["folder"] == BoundValue("/x", .given))
+        #expect(values["quality"] == BoundValue("55", .given))
+        #expect(values["format"] == BoundValue("heic", .given))
+    }
+
+    @Test func dashesStandForUnderscores() throws {
+        let clean = try makeAutomation(params: "older_than_days: int = 30")
+        #expect(try bind(clean, "--older-than-days", "7")["older_than_days"] == BoundValue("7", .given))
+        #expect(try bind(clean, "--older_than_days", "7")["older_than_days"] == BoundValue("7", .given))
+    }
+
+    @Test func boolFlags() throws {
+        let verbose = try makeAutomation(params: "verbose: bool = false", "name: string?")
+        #expect(try bind(verbose, "--verbose")["verbose"] == BoundValue("true", .given))
+        #expect(try bind(verbose, "--no-verbose")["verbose"] == BoundValue("false", .given))
+        #expect(try bind(verbose, "--verbose=false")["verbose"] == BoundValue("false", .given))
+        // A bare bool flag doesn't swallow the next word, which stays positional.
+        #expect(try bind(verbose, "--verbose", "alex")["name"] == BoundValue("alex", .given))
+    }
+
+    @Test func doubleDashMakesTheRestPositional() throws {
+        let echo = try makeAutomation(params: "text: string")
+        #expect(try bind(echo, "--", "--not-a-flag")["text"] == BoundValue("--not-a-flag", .given))
+    }
+
+    @Test func singleDashValuesArePositional() throws {
+        let offset = try makeAutomation(params: "by: int")
+        #expect(try bind(offset, "-5")["by"] == BoundValue("-5", .given))
+    }
+
+    @Test func requiredAndOptionalWithoutValues() throws {
+        let port = try makeAutomation(params: "port: int", "host: string?")
+        let binding = try ParamBinder.bind(port, arguments: [])
+        #expect(binding.values.isEmpty)
+        #expect(binding.missing.map(\.name) == ["port"])
+    }
+
+    @Test func supplyFillsMissingAfterValidating() throws {
+        let port = try makeAutomation(params: "port: int(1...65535)")
+        var binding = try ParamBinder.bind(port, arguments: [])
+        let param = port.params[0]
+        #expect(throws: BindingError("port: 99999 is outside 1...65535")) {
+            try binding.supply("99999", for: param, source: .prompted)
+        }
+        try binding.supply("3000", for: param, source: .prompted)
+        #expect(binding.values["port"] == BoundValue("3000", .prompted))
+        #expect(binding.missing.isEmpty)
+    }
+
+    @Test(arguments: [
+        (["99999"], "port: 99999 is outside 1...65535"),
+        (["abc"], "port: \"abc\" is not a whole number"),
+        (["1", "2"], "too many values: kill-port takes 1 param"),
+        (["--port", "1", "2"], "too many values: kill-port takes 1 param and 1 was given by name"),
+        (["--host", "x"], "kill-port has no param --host; it takes --port"),
+        (["--port"], "--port needs a value"),
+        (["--port", "1", "--port", "2"], "port is given twice"),
+        (["--no-port"], "kill-port has no param --no-port; it takes --port")
+    ])
+    func errors(arguments: [String], message: String) throws {
+        let killPort = try makeAutomation("kill-port", params: "port: int(1...65535)")
+        #expect(throws: BindingError(message)) { try ParamBinder.bind(killPort, arguments: arguments) }
+    }
+
+    @Test func errorsForAutomationsWithoutParams() throws {
+        let trash = try makeAutomation("empty-trash")
+        #expect(throws: BindingError("empty-trash takes no params, but 1 value was given")) {
+            try ParamBinder.bind(trash, arguments: ["now"])
+        }
+        #expect(throws: BindingError("empty-trash has no param --force; it takes none")) {
+            try ParamBinder.bind(trash, arguments: ["--force"])
+        }
+    }
+
+    @Test func invalidEnumAndBoolValues() throws {
+        #expect(throws: BindingError("format: \"png\" is not one of jpg, heic")) {
+            try ParamBinder.bind(compress, arguments: ["--format", "png"])
+        }
+        let verbose = try makeAutomation(params: "verbose: bool = false")
+        #expect(throws: BindingError("--no-verbose doesn't take a value")) {
+            try ParamBinder.bind(verbose, arguments: ["--no-verbose=true"])
+        }
+    }
+}
