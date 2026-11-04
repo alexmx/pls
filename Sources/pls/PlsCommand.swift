@@ -8,23 +8,33 @@ struct PlsCommand: ParsableCommand {
         commandName: "pls",
         abstract: "Run your own automations: shell scripts, AppleScript and Shortcuts.",
         version: Pls.version,
-        subcommands: [ListCommand.self, ShowCommand.self, DoctorCommand.self]
+        subcommands: [ListCommand.self, ShowCommand.self, RunCommand.self, DoctorCommand.self]
     )
-
-    /// Every subcommand in SPEC §6, including ones not built yet, so doctor flags clashing ids early.
-    static let commandNames: Set<String> = [
-        "list", "show", "run", "again", "history", "shortcuts", "doctor", "completion", "help"
-    ]
 }
 
 /// Exit codes from SPEC §6.
 enum Exit {
+    static let usage = ExitCode(64)
     static let notFound = ExitCode(65)
+    static let cannotRun = ExitCode(126)
+    static let cancelled = ExitCode(130)
 }
 
 extension Library {
     static func loadDefault() -> Library {
         load(home: defaultHome())
+    }
+
+    /// The automation with `id`, or a printed explanation and exit 65.
+    func require(_ id: String) throws -> Automation {
+        guard let automation = automation(id: id) else {
+            printError("No automation with id \(id).")
+            if leftOutIDs.contains(id) {
+                printError("\(id) has problems that keep it from loading; run `pls doctor`.")
+            }
+            throw Exit.notFound
+        }
+        return automation
     }
 }
 

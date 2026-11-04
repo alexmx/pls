@@ -9,7 +9,7 @@ struct DoctorCommand: ParsableCommand {
 
     func run() throws {
         let library = Library.loadDefault()
-        let problems = Doctor.check(library, commandNames: PlsCommand.commandNames)
+        let problems = Doctor.check(library)
         print("Library: \(displayPath(library.automationsDirectory))")
 
         guard !problems.isEmpty else {

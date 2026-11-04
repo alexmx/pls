@@ -8,14 +8,7 @@ struct ShowCommand: ParsableCommand {
     var id: String
 
     func run() throws {
-        let library = Library.loadDefault()
-        guard let automation = library.automation(id: id) else {
-            printError("No automation with id \(id).")
-            if library.leftOutIDs.contains(id) {
-                printError("\(id) has problems that keep it from loading; run `pls doctor`.")
-            }
-            throw Exit.notFound
-        }
+        let automation = try Library.loadDefault().require(id)
 
         print("\(automation.name)  (\(automation.id))")
         if let description = automation.description {

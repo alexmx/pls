@@ -12,34 +12,21 @@ struct DoctorTests {
         try home.write("d/manifest.yaml", "description: D\nentry: run.sh\n")
         try home.write("d/run.sh", "#!/bin/zsh\n")
 
-        #expect(Doctor.check(Library.load(home: home.url), commandNames: ["list"]).isEmpty)
+        #expect(Doctor.check(Library.load(home: home.url)).isEmpty)
     }
 
     @Test func includesLoadingProblems() throws {
         let home = try TempHome()
         try home.write("bad.sh", "# @pls.param x: nope\n")
         let library = Library.load(home: home.url)
-        #expect(Doctor.check(library, commandNames: []) == library.diagnostics)
+        #expect(Doctor.check(library) == library.diagnostics)
         #expect(!library.diagnostics.isEmpty)
-    }
-
-    @Test func idThatIsACommand() throws {
-        let home = try TempHome()
-        let file = try home.write("list.sh", "#!/bin/zsh\n# @pls.description: x\n")
-        #expect(Doctor.check(Library.load(home: home.url), commandNames: ["list"]) == [
-            Diagnostic(
-                .warning,
-                "id list is also a command; run it with `pls run list`",
-                file: file,
-                automation: "list"
-            )
-        ])
     }
 
     @Test func missingDescription() throws {
         let home = try TempHome()
         let file = try home.write("x.sh", "#!/bin/zsh\n")
-        #expect(Doctor.check(Library.load(home: home.url), commandNames: []) == [
+        #expect(Doctor.check(Library.load(home: home.url)) == [
             Diagnostic(
                 .warning, "no description, so natural-language requests will never pick it", file: file, automation: "x"
             )
@@ -50,7 +37,7 @@ struct DoctorTests {
         let home = try TempHome()
         let manifest = try home.write("x/manifest.yaml", "entry: run.sh\nicon: fire\n")
         try home.write("x/run.sh", "#!/bin/zsh\n")
-        let files = Doctor.check(Library.load(home: home.url), commandNames: []).map(\.file)
+        let files = Doctor.check(Library.load(home: home.url)).map(\.file)
         #expect(files == [manifest, manifest])
     }
 
@@ -58,7 +45,7 @@ struct DoctorTests {
         let home = try TempHome()
         try home.write("x/manifest.yaml", "description: x\nentry: run.sh\n")
         let entry = try home.write("x/run.sh", "echo hi\n")
-        #expect(Doctor.check(Library.load(home: home.url), commandNames: []) == [
+        #expect(Doctor.check(Library.load(home: home.url)) == [
             Diagnostic(
                 .warning, "not executable and has no shebang, so it will run with /bin/zsh", file: entry,
                 automation: "x"
