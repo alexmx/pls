@@ -38,7 +38,7 @@ What you write and what pls writes live apart, so the first can sit in a dotfile
       run.sh
   shortcuts.yaml          # opt-in Shortcuts
 
-~/.local/state/pls/       # $XDG_STATE_HOME/pls, else ~/.local/state/pls
+~/.local/state/pls/       # $PLS_HOME, else $XDG_STATE_HOME/pls, else ~/.local/state/pls
   history.jsonl
 ```
 
@@ -205,8 +205,8 @@ pls list [--json]                      # id, kind, description (--json: everythi
 pls show <id>                          # full details, params, source path
 pls run <id> [values…] [--<param> <value>…] [-y|--yes] [--dry-run]
 pls "<request>" [--yes] [--dry-run]    # natural language
-pls again                              # re-run the last run with the same params
-pls history [-n 20]
+pls again [-y|--yes] [--dry-run]       # re-run the last run with the values you chose
+pls history [-n|--limit 20]            # recent runs, newest first
 pls shortcuts list                     # all Shortcuts, marking the ones enabled
 pls shortcuts add "<name>"             # append an entry to shortcuts.yaml
 pls shortcuts remove <id>
@@ -267,15 +267,30 @@ Then the values are merged and validated (§4.3), missing required values are pr
 
 ## 8. History
 
-Every run appends one JSON line to `~/.local/state/pls/history.jsonl`:
+Every run whose script started appends one JSON line to the history file (§2), after the script ends, failed runs
+included. Dry runs, invalid values, cancelled prompts and scripts that couldn't start (126) aren't recorded. If the
+file can't be written, pls prints a warning and keeps the script's exit code. Each line is a single append, so runs
+finishing at the same time don't interleave; lines that can't be read are skipped.
 
 ```json
-{"at":"2026-11-04T19:30:00Z","id":"kill-port","params":{"port":"3000"},"source":"nl",
- "request":"something is stuck on 3000","edited":false,"exit":0,"seconds":0.4}
+{"at":"2026-11-04T19:30:00Z","chosen":["port"],"exit":0,"id":"kill-port","params":{"port":"3000"},"seconds":0.4,
+ "via":"run"}
 ```
 
-`pls again` re-runs the last entry with the same params, without asking the model again. Saving `request` and
-`edited` now makes "learn from accepted picks" possible later without a migration.
+- `params`: every value the run used, defaults included. `chosen`: the ones typed, entered at a prompt or repeated,
+  as opposed to defaulted.
+- `via`: `run` or `again`. Natural language (milestone 3) will add `"via":"request"` plus `request` (the words) and
+  `edited` (whether the plan was changed before running), the data "learn from accepted picks" needs.
+
+`pls history` shows recent runs: time, automation, the chosen values, ok or the exit code, and duration.
+
+`pls again` repeats the newest entry against the automation as it is now, without asking the model again:
+- chosen values are replayed (shown as "last run"); defaults come from the current automation, so a changed default
+  is picked up;
+- params the automation no longer has are dropped; required params it has gained are asked for in a terminal
+  (exit 64 without one);
+- a replayed value that no longer fits its param is exit 64; no history, or an automation that's gone, is exit 65;
+- it prints what it repeats, asks first for `confirm: true` automations unless `--yes`, and is recorded itself.
 
 ## 9. Doctor
 
@@ -317,7 +332,7 @@ Natural-language dispatch (§6) happens before ArgumentParser, which handles the
 ## 11. Milestones
 
 1. **Library:** both automation formats + `list`, `show`, `doctor`.
-2. **Runner:** shell + AppleScript runners, `run` with params, prompts, `--dry-run`. Then history and `again`.
+2. **Runner:** shell + AppleScript runners, `run` with params, prompts, `--dry-run`; then history, `history` and `again`.
 3. **Natural language:** pick & fill, review/edit, fuzzy fallback, eval set.
 4. **Shortcuts:** `shortcuts.yaml`, runner, `shortcuts list/add/remove`.
 5. **Polish:** zsh completion, exit codes, error messages.
