@@ -259,13 +259,21 @@ Every run appends one JSON line to `history.jsonl`:
 
 ## 9. Doctor
 
-Reports:
-- header or manifest parse errors and unknown keys
-- duplicate ids, ids that clash with subcommands, invalid id characters
-- missing `description` (not offered to the model)
-- missing entry files; non-executable shell files without a shebang (info only)
+Reports each problem with its file (and line, where known). Errors mean the automation can't be used and
+is left out of the library; warnings don't. Exits 1 if there's any error, 0 otherwise.
+
+Errors:
+- header or manifest parse errors, missing entry files
+- duplicate ids, invalid id characters
 - enabled Shortcuts that no longer exist
-- model availability, plus the routing list's token count vs. the context size
+
+Warnings:
+- unknown header or manifest keys
+- ids that clash with subcommands
+- missing `description` (not offered to the model)
+- non-executable shell files without a shebang (they run with `/bin/zsh`)
+
+Info: model availability, plus the routing list's token count vs. the context size.
 
 ## 10. Code structure
 
