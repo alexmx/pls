@@ -177,15 +177,18 @@ Only Shortcuts listed in `shortcuts.yaml` are part of the library. Manage the fi
 
 Final values are built in this order (later wins): defaults → model output (NL only) → CLI arguments → interactive edits.
 Values are then validated against their type. A required param that's still missing triggers a prompt
-when running in a terminal; otherwise pls exits with code 64.
+when running in a terminal (re-asked until valid); otherwise pls exits with code 64. An invalid value given on the
+command line is an error (64), not a prompt.
 
 ## 5. Execution
 
 Scripts run in the user's **current directory**, with stdin/stdout/stderr attached, so interactive scripts work.
-pls exits with the script's exit code.
+pls exits with the script's exit code, or 128 + the signal number if a signal ended it. Ctrl-C reaches the script as
+usual; pls waits for it to finish rather than quitting first.
 
 Environment for all kinds:
-- `PLS_<NAME>` for every param, with the name in uppercase (`PLS_PORT=3000`). Optional params with no value are unset.
+- `PLS_<NAME>` for every param, with the name in uppercase (`PLS_PORT=3000`). Optional params with no value are
+  unset, even if the user's shell exports the same name.
 - `PLS_ID`, and for folder automations `PLS_AUTOMATION_DIR` (where its files live).
 
 | Kind | How it's run |
@@ -199,8 +202,7 @@ Environment for all kinds:
 ```
 pls list [--json]                      # id, kind, description (--json: everything)
 pls show <id>                          # full details, params, source path
-pls run <id> [values…] [--<param> <value>…] [--yes] [--dry-run]
-pls <id> [values…]                     # same as run
+pls run <id> [values…] [--<param> <value>…] [-y|--yes] [--dry-run]
 pls "<request>" [--yes] [--dry-run]    # natural language
 pls again                              # re-run the last run with the same params
 pls history [-n 20]
@@ -211,16 +213,21 @@ pls doctor
 pls completion zsh
 ```
 
-**Dispatch:** a known subcommand wins → else the first argument is an automation id → else all arguments joined
-are a natural-language request. Automation ids that clash with subcommands are reported by `doctor`.
+**Dispatch:** a known subcommand wins; otherwise all arguments joined are a natural-language request. Automations
+are only ever run by id through `pls run`, so an id may equal a command name (`pls run list`). Open for milestone 3:
+how a request that starts with a command word (`pls run the backup`) is handled.
 
-**Params on the CLI:** positional values in declared order, or `--<name> <value>`. Bools also accept `--<name>` / `--no-<name>`.
+**Params on the CLI:** positional values fill the params not given by name, in declared order; or `--<name> <value>` /
+`--<name>=<value>`, where dashes may stand for underscores (`--older-than-days`). Bools also accept `--<name>` /
+`--no-<name>`. A lone `--` makes everything after it positional.
 
 **Confirmation**
-- By id: runs immediately, unless the automation has `confirm: true`.
+- `pls run`: runs immediately, unless the automation has `confirm: true`.
 - Natural language: always shows the plan and asks.
-- `--yes` skips every prompt. Without a terminal and without `--yes`, prompts fail with exit code 64.
-- `--dry-run` prints the plan and exits.
+- `--yes` skips the question. Without a terminal and without `--yes`, it fails with exit code 64.
+- `--dry-run` prints the plan, the exact command and the `PLS_` variables, and exits without asking.
+- Prompts, and the plan shown with the confirm question, go to stderr, so stdout carries only the script's
+  output. `--dry-run` prints to stdout.
 
 **Plan display** marks where each value came from:
 
@@ -234,8 +241,9 @@ are a natural-language request. Automation ids that clash with subcommands are r
 
 `e` edits each param in turn, with the current value prefilled.
 
-**Exit codes:** the script's own code when it ran; `64` usage or validation error; `65` unknown id or no NL match;
-`69` model unavailable and no fallback chosen; `130` cancelled at a prompt.
+**Exit codes:** the script's own code when it ran (128 + signal if killed); `64` usage or validation error; `65`
+unknown id or no NL match; `69` model unavailable and no fallback chosen; `126` the script couldn't be started
+(e.g. its shebang interpreter doesn't exist); `130` cancelled at a prompt.
 
 ## 7. Natural language (pick & fill)
 
@@ -280,7 +288,6 @@ Errors:
 Warnings:
 - the library folder doesn't exist (e.g. a mistyped `PLS_HOME`); unreadable is an error
 - unknown header or manifest keys
-- ids that clash with subcommands
 - missing `description` (not offered to the model)
 - non-executable shell files without a shebang (they run with `/bin/zsh`)
 
@@ -303,12 +310,12 @@ Tests/PlsCoreTests/       # parsers, binder, dispatch, runners (with fixture scr
 Evals/                    # NL eval set + runner, ported from poc/ (not run in `swift test`)
 ```
 
-Dispatch (§6) happens before ArgumentParser, which handles the subcommands themselves.
+Natural-language dispatch (§6) happens before ArgumentParser, which handles the subcommands themselves.
 
 ## 11. Milestones
 
 1. **Library:** both automation formats + `list`, `show`, `doctor`.
-2. **Runner:** shell + AppleScript runners, `run` with params, prompts, `--dry-run`, history, `again`.
+2. **Runner:** shell + AppleScript runners, `run` with params, prompts, `--dry-run`. Then history and `again`.
 3. **Natural language:** pick & fill, review/edit, fuzzy fallback, eval set.
 4. **Shortcuts:** `shortcuts.yaml`, runner, `shortcuts list/add/remove`.
 5. **Polish:** zsh completion, exit codes, error messages.
