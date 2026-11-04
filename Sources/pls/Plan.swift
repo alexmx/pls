@@ -25,7 +25,8 @@ func printPlan(_ binding: Binding, write: (String) -> Void = { print($0) }) {
 /// The exact command and the PLS_ variables, for --dry-run.
 func printInvocation(_ invocation: Invocation) {
     print("\n  command  \(invocation.commandLine)")
-    let variables = invocation.variables.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
+    let variables = invocation.variables.sorted { $0.key < $1.key }
+        .map { "\($0.key)=\(Invocation.shellQuoted($0.value))" }
     for (index, line) in variables.enumerated() {
         print((index == 0 ? "  env      " : "           ") + line)
     }

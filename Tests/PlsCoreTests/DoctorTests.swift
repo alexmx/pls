@@ -7,7 +7,7 @@ struct DoctorTests {
     @Test func healthyLibraryHasNoProblems() throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\n# @pls.description: A\n")
-        try home.write("b.sh", "# @pls.description: B\n", executable: true)
+        try home.write("b.sh", "#!/bin/bash\n# @pls.description: B\n", executable: true)
         try home.write("c.applescript", "-- @pls.description: C\n")
         try home.write("d/manifest.yaml", "description: D\nentry: run.sh\n")
         try home.write("d/run.sh", "#!/bin/zsh\n")
@@ -41,15 +41,13 @@ struct DoctorTests {
         #expect(files == [manifest, manifest])
     }
 
-    @Test func nonExecutableShellScriptWithoutShebang() throws {
+    @Test(arguments: [false, true])
+    func shellScriptWithoutShebang(executable: Bool) throws {
         let home = try TempHome()
         try home.write("x/manifest.yaml", "description: x\nentry: run.sh\n")
-        let entry = try home.write("x/run.sh", "echo hi\n")
+        let entry = try home.write("x/run.sh", "echo hi\n", executable: executable)
         #expect(Doctor.check(Library.load(home: home.url)) == [
-            Diagnostic(
-                .warning, "not executable and has no shebang, so it will run with /bin/zsh", file: entry,
-                automation: "x"
-            )
+            Diagnostic(.warning, "has no shebang, so it runs with /bin/zsh", file: entry, automation: "x")
         ])
     }
 }

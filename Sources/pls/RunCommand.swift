@@ -34,7 +34,7 @@ struct RunCommand: ParsableCommand {
             throw Exit.usage
         }
 
-        if !binding.missing.isEmpty {
+        if !binding.missing.isEmpty, !dryRun {
             guard Prompt.isInteractive else {
                 let names = binding.missing.map { "--\($0.name)" }.joined(separator: ", ")
                 printError("pls: missing \(names); give it on the command line (there's no terminal to ask in)")
@@ -52,8 +52,13 @@ struct RunCommand: ParsableCommand {
 
         let invocation = Invocation(binding)
         if dryRun {
+            // A preview never asks: show what's missing instead of the command it can't complete yet.
             printPlan(binding)
-            printInvocation(invocation)
+            if binding.missing.isEmpty {
+                printInvocation(invocation)
+            } else {
+                print("\n  pls would ask for \(binding.missing.map(\.name).joined(separator: ", ")) first.")
+            }
             return
         }
 

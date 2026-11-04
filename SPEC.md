@@ -187,13 +187,14 @@ pls exits with the script's exit code, or 128 + the signal number if a signal en
 usual; pls waits for it to finish rather than quitting first.
 
 Environment for all kinds:
-- `PLS_<NAME>` for every param, with the name in uppercase (`PLS_PORT=3000`). Optional params with no value are
-  unset, even if the user's shell exports the same name.
+- `PLS_<NAME>` for every param, with the name in uppercase (`PLS_PORT=3000`). Optional params with no value are unset.
+- Every other `PLS_` variable from the calling environment is removed, except `PLS_HOME`: a `pls run` inside a script
+  uses the same library but inherits nothing else from the automation that called it.
 - `PLS_ID`, and for folder automations `PLS_AUTOMATION_DIR` (where its files live).
 
 | Kind | How it's run |
 |---|---|
-| shell | If executable, run directly. Otherwise use the shebang interpreter, or `/bin/zsh` if there's no shebang. Params are also passed as positional arguments in declared order (unset → empty string). |
+| shell | With a shebang: run directly if executable, otherwise through the shebang's interpreter. Without one: `/bin/zsh <file>`, executable or not. Params are also passed as positional arguments in declared order (unset → empty string). |
 | applescript | `osascript <file> <params in declared order>`; read them with `on run argv`. |
 | shortcut | `shortcuts run "<name>" --input-path <tmp> --output-path <tmp>`. One param → its value as plain text. Several → a JSON object as text (use *Get Dictionary from Input* in the Shortcut). The output, if any, is printed to stdout. |
 
@@ -225,7 +226,8 @@ how a request that starts with a command word (`pls run the backup`) is handled.
 - `pls run`: runs immediately, unless the automation has `confirm: true`.
 - Natural language: always shows the plan and asks.
 - `--yes` skips the question. Without a terminal and without `--yes`, it fails with exit code 64.
-- `--dry-run` prints the plan, the exact command and the `PLS_` variables, and exits without asking.
+- `--dry-run` prints the plan, the exact command and the `PLS_` variables, and exits without asking anything;
+  missing values are shown as missing instead of prompted for.
 - Prompts, and the plan shown with the confirm question, go to stderr, so stdout carries only the script's
   output. `--dry-run` prints to stdout.
 
@@ -289,7 +291,7 @@ Warnings:
 - the library folder doesn't exist (e.g. a mistyped `PLS_HOME`); unreadable is an error
 - unknown header or manifest keys
 - missing `description` (not offered to the model)
-- non-executable shell files without a shebang (they run with `/bin/zsh`)
+- shell files without a shebang (they run with `/bin/zsh`)
 
 Info: model availability, plus the routing list's token count vs. the context size.
 

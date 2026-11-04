@@ -11,10 +11,8 @@ public enum Doctor {
             if automation.description == nil {
                 warn("no description, so natural-language requests will never pick it")
             }
-            if automation.kind == .shell,
-               !FileManager.default.isExecutableFile(atPath: automation.script.path),
-               !hasShebang(automation.script) {
-                warn("not executable and has no shebang, so it will run with /bin/zsh", file: automation.script)
+            if automation.kind == .shell, !hasShebang(automation.script) {
+                warn("has no shebang, so it runs with /bin/zsh", file: automation.script)
             }
         }
         return found

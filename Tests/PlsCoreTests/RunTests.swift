@@ -16,10 +16,19 @@ struct RunTests {
 
     @Test func executableScriptRunsDirectly() throws {
         let home = try TempHome()
-        let script = try home.write("a.sh", "# @pls.param x: string\n", executable: true)
+        let script = try home.write("a.sh", "#!/bin/zsh\n# @pls.param x: string\n", executable: true)
         let run = try invocation(home, "a.sh", arguments: ["hi"])
         #expect(run.executable == script)
         #expect(run.arguments == ["hi"])
+    }
+
+    /// The kernel can't exec a file without a shebang (ENOEXEC); shells fall back to sh, pls to zsh.
+    @Test func executableScriptWithoutShebangUsesZsh() throws {
+        let home = try TempHome()
+        let script = try home.write("a.sh", "echo hi\n", executable: true)
+        let run = try invocation(home, "a.sh")
+        #expect(run.executable.path == "/bin/zsh")
+        #expect(run.arguments == [script.path])
     }
 
     @Test func nonExecutableScriptUsesItsShebang() throws {
@@ -49,6 +58,7 @@ struct RunTests {
     @Test func valuesAndVariables() throws {
         let home = try TempHome()
         try home.write("a.sh", """
+        #!/bin/zsh
         # @pls.param folder: path = ~/Desktop
         # @pls.param name: string?
         # @pls.param older_than_days: int = 30
@@ -58,7 +68,6 @@ struct RunTests {
 
         #expect(run.arguments == ["/Users/me/Desktop", "", "30"])
         #expect(run.variables == ["PLS_ID": "a", "PLS_FOLDER": "/Users/me/Desktop", "PLS_OLDER_THAN_DAYS": "30"])
-        #expect(run.unset == ["PLS_NAME", "PLS_AUTOMATION_DIR"])
     }
 
     @Test func folderAutomationGetsItsDirectory() throws {
@@ -67,15 +76,18 @@ struct RunTests {
         try home.write("tool/run.sh", "", executable: true)
         let run = try invocation(home, "tool/run.sh")
         #expect(run.variables["PLS_AUTOMATION_DIR"] == home.url.appending(path: "automations/tool").path)
-        #expect(!run.unset.contains("PLS_AUTOMATION_DIR"))
     }
 
     @Test func environmentDropsStaleVariables() throws {
         let home = try TempHome()
         try home.write("a.sh", "# @pls.param name: string?\n", executable: true)
         let run = try invocation(home, "a.sh")
-        let environment = run.environment(inheriting: ["PATH": "/bin", "PLS_NAME": "stale", "PLS_ID": "old"])
-        #expect(environment == ["PATH": "/bin", "PLS_ID": "a"])
+        let inherited = [
+            "PATH": "/bin", "PLS_NAME": "stale", "PLS_ID": "old", "PLS_PORT": "from a calling automation",
+            "PLS_AUTOMATION_DIR": "/elsewhere", "PLS_HOME": "/my/library"
+        ]
+        // Only PLS_HOME survives, so `pls run` inside a script uses the same library and nothing else leaks in.
+        #expect(run.environment(inheriting: inherited) == ["PATH": "/bin", "PLS_ID": "a", "PLS_HOME": "/my/library"])
     }
 
     @Test(arguments: [
@@ -90,7 +102,9 @@ struct RunTests {
 
     @Test func commandLineQuotesWhatNeedsIt() throws {
         let home = try TempHome()
-        let script = try home.write("a.sh", "# @pls.param a: string\n# @pls.param b: string?\n", executable: true)
+        let script = try home.write(
+            "a.sh", "#!/bin/zsh\n# @pls.param a: string\n# @pls.param b: string?\n", executable: true
+        )
         let run = try invocation(home, "a.sh", arguments: ["it's here"])
         #expect(run.commandLine == "\(script.path) 'it'\\''s here' ''")
     }

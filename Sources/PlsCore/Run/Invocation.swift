@@ -7,21 +7,16 @@ public struct Invocation: Sendable, Equatable {
     public let arguments: [String]
     /// Set on top of the inherited environment.
     public let variables: [String: String]
-    /// `PLS_` variables removed from the inherited environment, so a param left empty is really unset even if
-    /// the user's shell happens to export the same name.
-    public let unset: Set<String>
 
     public init(_ binding: Binding, homeDirectory: String = NSHomeDirectory()) {
         let automation = binding.automation
         var values: [String] = []
         var variables = ["PLS_ID": automation.id]
-        var unset: Set<String> = []
 
         for param in automation.params {
             let key = Self.variableName(for: param.name)
             guard var value = binding.values[param.name]?.value else {
                 values.append("")
-                unset.insert(key)
                 continue
             }
             if param.type == .path {
@@ -32,8 +27,6 @@ public struct Invocation: Sendable, Equatable {
         }
         if case let .folder(folder, _) = automation.source {
             variables["PLS_AUTOMATION_DIR"] = folder.path
-        } else {
-            unset.insert("PLS_AUTOMATION_DIR")
         }
 
         let script = automation.script
@@ -42,24 +35,28 @@ public struct Invocation: Sendable, Equatable {
             self.executable = URL(filePath: "/usr/bin/osascript")
             self.arguments = [script.path] + values
         case .shell:
+            // Without a shebang the kernel can't exec the file (ENOEXEC), executable or not; use zsh, as a shell would.
+            guard let interpreter = Self.shebang(of: script), let program = interpreter.first else {
+                self.executable = URL(filePath: "/bin/zsh")
+                self.arguments = [script.path] + values
+                break
+            }
             if FileManager.default.isExecutableFile(atPath: script.path) {
                 self.executable = script
                 self.arguments = values
-            } else if let interpreter = Self.shebang(of: script), let program = interpreter.first {
+            } else {
                 self.executable = URL(filePath: program)
                 self.arguments = interpreter.dropFirst() + [script.path] + values
-            } else {
-                self.executable = URL(filePath: "/bin/zsh")
-                self.arguments = [script.path] + values
             }
         }
         self.variables = variables
-        self.unset = unset
     }
 
-    /// The environment the program gets.
+    /// The environment the program gets: the inherited one minus every `PLS_` variable except `PLS_HOME`, plus
+    /// `variables`. So a param left empty is really unset, and a `pls run` inside a script gets nothing from the
+    /// automation that called it except which library to use.
     public func environment(inheriting base: [String: String]) -> [String: String] {
-        base.filter { !unset.contains($0.key) }.merging(variables) { _, new in new }
+        base.filter { !$0.key.hasPrefix("PLS_") || $0.key == "PLS_HOME" }.merging(variables) { _, new in new }
     }
 
     /// The command as you'd type it in a shell, for display.
@@ -95,7 +92,8 @@ public struct Invocation: Sendable, Equatable {
         return words.isEmpty ? nil : words
     }
 
-    private static func shellQuoted(_ word: String) -> String {
+    /// `word`, quoted for a shell only if it needs to be.
+    public static func shellQuoted(_ word: String) -> String {
         if !word.isEmpty, word.wholeMatch(of: /[A-Za-z0-9_\/.:=@%+,-]+/) != nil {
             return word
         }
