@@ -74,10 +74,10 @@ public enum ManifestParser {
                     continue
                 }
                 guard let param = readParam(mapping, at: item) else { continue }
-                if result.metadata.params.contains(where: { $0.name == param.name }) {
-                    error("param \"\(param.name)\" is declared twice", at: item)
-                } else {
-                    result.metadata.params.append(param)
+                do {
+                    try result.metadata.add(param)
+                } catch {
+                    self.error(error.description, at: item)
                 }
             }
         }
@@ -120,13 +120,9 @@ public enum ManifestParser {
                     }
                     isOptional = flag
                 }
-                let requirement: Param.Requirement
-                switch (isOptional, defaultValue) {
-                case (true, .some): throw ParamError("param \(name) is optional and also has a default; use one")
-                case (true, .none): requirement = .optional
-                case let (false, .some(value)): requirement = .defaultValue(value)
-                case (false, .none): requirement = .required
-                }
+                let requirement = try Param.Requirement(
+                    param: name, isOptional: isOptional, defaultValue: defaultValue
+                )
                 let description = fields["description"].flatMap { text($0, "description") }
                 return try Param(name: name, type: type, requirement: requirement, description: description)
             } catch {
@@ -136,42 +132,20 @@ public enum ManifestParser {
         }
 
         func paramType(_ name: String, _ fields: [String: Node]) throws(ParamError) -> ParamType {
-            let min = fields["min"], max = fields["max"], options = fields["options"]
-            switch name {
-            case "string", "path", "bool":
-                guard min == nil, max == nil, options == nil else {
-                    throw ParamError("\(name) doesn't take min, max or options")
-                }
-                return name == "string" ? .string : name == "path" ? .path : .bool
-            case "int", "number":
-                guard options == nil else { throw ParamError("\(name) doesn't take options") }
-                guard let min, let max else {
-                    if min == nil, max == nil {
-                        return name == "int" ? .int(nil) : .number(nil)
-                    }
-                    throw ParamError("give both min and max, or neither")
-                }
-                if name == "int" {
-                    guard let lo = min.int, let hi = max.int, lo <= hi else {
-                        throw ParamError("int min and max must be whole numbers with min <= max")
-                    }
-                    return .int(lo...hi)
-                }
-                guard let lo = min.float, let hi = max.float, lo <= hi else {
-                    throw ParamError("number min and max must be numbers with min <= max")
-                }
-                return .number(lo...hi)
-            case "enum":
-                guard min == nil, max == nil else { throw ParamError("enum doesn't take min or max") }
-                let values = options?.sequence?.compactMap { $0.null == nil ? $0.string : nil } ?? []
-                guard !values.isEmpty, values.count == options?.sequence?.count, Set(values).count == values.count
-                else {
-                    throw ParamError("enum needs a list of distinct options")
-                }
-                return .enum(values)
-            default:
-                throw ParamError("unknown type \"\(name)\"; use string, path, int, number, bool or enum")
+            let bounds: (min: String, max: String)?
+            switch (fields["min"], fields["max"]) {
+            case (nil, nil): bounds = nil
+            case let (min?, max?): bounds = (scalarText(min), scalarText(max))
+            default: throw ParamError("give both min and max, or neither")
             }
+            // A non-list or a non-text item becomes "", which the shared rules reject.
+            let options = fields["options"].map { node in node.sequence?.map(scalarText) ?? [""] }
+            return try ParamType(name: name, bounds: bounds, options: options)
+        }
+
+        /// The node's text if it's a non-null scalar, otherwise "".
+        func scalarText(_ node: Node) -> String {
+            node.scalar != nil && node.null == nil ? node.string ?? "" : ""
         }
 
         static let paramKeys: Set = ["name", "type", "default", "optional", "description", "min", "max", "options"]

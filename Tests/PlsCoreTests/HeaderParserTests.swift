@@ -140,6 +140,8 @@ struct HeaderParserTests {
         "ratio: number(a...b)",
         "format: enum()",
         "format: enum(png|png)",
+        "format: enum(png||jpg)",
+        "port: color(5)",
         "format: enum(png|jpg) = gif",
         "port: int = abc",
         "port: int(1...10) = 11",
@@ -148,6 +150,18 @@ struct HeaderParserTests {
     ])
     func invalidParams(line: String) {
         #expect(throws: ParamError.self) { try HeaderParser.parseParam(line) }
+    }
+
+    @Test(arguments: [
+        ("port: color(5)", "unknown type \"color\"; use string, path, int, number, bool or enum"),
+        ("s: string(5)", "string doesn't take options"),
+        ("n: int(1-100)", "int range must look like int(1...100)"),
+        ("n: int(a...b)", "int range must be whole numbers with min <= max, like 1...100"),
+        ("e: enum", "enum needs distinct, non-empty options"),
+        ("t: string? = x", "param t is optional and also has a default; use one")
+    ])
+    func paramErrorMessages(line: String, message: String) {
+        #expect(throws: ParamError(message)) { try HeaderParser.parseParam(line) }
     }
 
     // MARK: model

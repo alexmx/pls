@@ -37,12 +37,7 @@ public enum HeaderParser {
 
             if key == "param" {
                 do {
-                    let param = try parseParam(rest.trimmingCharacters(in: .whitespaces))
-                    if result.metadata.params.contains(where: { $0.name == param.name }) {
-                        report(.error, "param \"\(param.name)\" is declared twice")
-                    } else {
-                        result.metadata.params.append(param)
-                    }
+                    try result.metadata.add(parseParam(rest.trimmingCharacters(in: .whitespaces)))
                 } catch {
                     report(.error, error.description)
                 }
@@ -113,14 +108,12 @@ public enum HeaderParser {
             typeSpec.removeLast()
         }
 
-        let requirement: Param.Requirement
-        switch (isOptional, defaultValue) {
-        case (true, .some): throw ParamError("param \(name) is optional (?) and also has a default; use one")
-        case (true, .none): requirement = .optional
-        case let (false, .some(value)): requirement = .defaultValue(value)
-        case (false, .none): requirement = .required
-        }
-        return try Param(name: name, type: parseType(typeSpec), requirement: requirement, description: description)
+        return try Param(
+            name: name,
+            type: parseType(typeSpec),
+            requirement: Param.Requirement(param: name, isOptional: isOptional, defaultValue: defaultValue),
+            description: description
+        )
     }
 
     /// `string`, `path`, `bool`, `int`, `int(1...100)`, `number(0...1)`, `enum(a|b|c)`.
@@ -128,42 +121,28 @@ public enum HeaderParser {
         guard let match = spec.wholeMatch(of: /([a-z]+)(?:\((.*)\))?/) else {
             throw ParamError(spec.isEmpty ? "missing param type" : "can't read type \"\(spec)\"")
         }
-        let base = String(match.1)
-        let argument = match.2.map { $0.trimmingCharacters(in: .whitespaces) }
-
-        switch base {
-        case "string", "path", "bool":
-            guard argument == nil else { throw ParamError("\(base) doesn't take arguments") }
-            return base == "string" ? .string : base == "path" ? .path : .bool
-        case "int":
-            guard let argument else { return .int(nil) }
-            guard let (lo, hi) = splitRange(argument), let min = Int(lo), let max = Int(hi), min <= max else {
-                throw ParamError("int range must look like int(1...100)")
-            }
-            return .int(min...max)
-        case "number":
-            guard let argument else { return .number(nil) }
-            guard let (lo, hi) = splitRange(argument), let min = Double(lo), let max = Double(hi), min <= max else {
-                throw ParamError("number range must look like number(0...1)")
-            }
-            return .number(min...max)
-        case "enum":
-            let options = (argument ?? "").split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }
-            guard !options.isEmpty, !options.contains(""), Set(options).count == options.count else {
-                throw ParamError("enum needs distinct options, like enum(png|jpg)")
-            }
-            return .enum(options)
-        default:
-            throw ParamError("unknown type \"\(base)\"; use string, path, int, number, bool or enum")
+        let name = String(match.1)
+        guard let argument = match.2.map({ $0.trimmingCharacters(in: .whitespaces) }) else {
+            return try ParamType(name: name, bounds: nil, options: nil)
         }
-    }
-
-    private static func splitRange(_ text: String) -> (Substring, Substring)? {
-        guard let dots = text.range(of: "...") else { return nil }
-        return (
-            text[..<dots.lowerBound].trimmingCharacters(in: .whitespaces)[...],
-            text[dots.upperBound...].trimmingCharacters(in: .whitespaces)[...]
-        )
+        switch name {
+        case "int", "number":
+            guard let dots = argument.range(of: "...") else {
+                throw ParamError("\(name) range must look like \(name)(1...100)")
+            }
+            let bounds = (
+                min: argument[..<dots.lowerBound].trimmingCharacters(in: .whitespaces),
+                max: argument[dots.upperBound...].trimmingCharacters(in: .whitespaces)
+            )
+            return try ParamType(name: name, bounds: bounds, options: nil)
+        case "enum":
+            let options = argument.split(separator: "|", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            return try ParamType(name: name, bounds: nil, options: options)
+        default:
+            // `string(5)` and the like: hand the argument over so the shared rules reject it.
+            return try ParamType(name: name, bounds: nil, options: [argument])
+        }
     }
 
     private static func unquote(_ text: String) -> String {

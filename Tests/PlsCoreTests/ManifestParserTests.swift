@@ -120,20 +120,20 @@ struct ManifestParserTests {
         ("entry: run.sh\nparams:\n  - {name: a, type: int, min: 1}\n", "give both min and max, or neither"),
         (
             "entry: run.sh\nparams:\n  - {name: a, type: int, min: 1.5, max: 3}\n",
-            "int min and max must be whole numbers with min <= max"
+            "int range must be whole numbers with min <= max, like 1...100"
         ),
         (
             "entry: run.sh\nparams:\n  - {name: a, type: int, min: 5, max: 1}\n",
-            "int min and max must be whole numbers with min <= max"
+            "int range must be whole numbers with min <= max, like 1...100"
         ),
         (
             "entry: run.sh\nparams:\n  - {name: a, type: string, options: [x]}\n",
-            "string doesn't take min, max or options"
+            "string doesn't take options"
         ),
-        ("entry: run.sh\nparams:\n  - {name: a, type: enum}\n", "enum needs a list of distinct options"),
+        ("entry: run.sh\nparams:\n  - {name: a, type: enum}\n", "enum needs distinct, non-empty options"),
         (
             "entry: run.sh\nparams:\n  - {name: a, type: enum, options: [x, x]}\n",
-            "enum needs a list of distinct options"
+            "enum needs distinct, non-empty options"
         ),
         (
             "entry: run.sh\nparams:\n  - {name: a, type: enum, options: [x], default: y}\n",
