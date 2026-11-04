@@ -31,6 +31,21 @@ public struct HistoryEntry: Codable, Sendable, Equatable {
     }
 }
 
+extension HistoryEntry {
+    /// The entry for a finished run of `binding`.
+    public init(_ binding: Binding, via trigger: Trigger, exit: Int32, seconds: Double, at: Date) {
+        self.init(
+            at: at,
+            id: binding.automation.id,
+            params: binding.values.mapValues(\.value),
+            chosen: binding.values.filter { $0.value.source != .defaultValue }.map(\.key),
+            via: trigger,
+            exit: exit,
+            seconds: seconds
+        )
+    }
+}
+
 /// History as JSON lines: one entry per line, appended as runs finish.
 public struct HistoryStore: Sendable {
     public struct WriteError: Error, CustomStringConvertible {

@@ -64,6 +64,22 @@ struct HistoryTests {
         #expect(throws: HistoryStore.WriteError.self) { try HistoryStore(file: file).append(makeEntry("a")) }
     }
 
+    @Test func entryFromABindingMarksChosenValues() throws {
+        let automation = try makeAutomation(
+            "compress", params: "folder: path = ~/Desktop", "quality: int = 80", "note: string?"
+        )
+        var binding = try ParamBinder.bind(automation, arguments: ["--quality", "60"])
+        try binding.supply("hi", for: automation.params[2], source: .prompted)
+        let at = Date(timeIntervalSince1970: 0)
+
+        let entry = HistoryEntry(binding, via: .run, exit: 2, seconds: 1.5, at: at)
+
+        #expect(entry == HistoryEntry(
+            at: at, id: "compress", params: ["folder": "~/Desktop", "quality": "60", "note": "hi"],
+            chosen: ["note", "quality"], via: .run, exit: 2, seconds: 1.5
+        ))
+    }
+
     @Test func locationFollowsPlsHomeThenXDGStateHome() {
         #expect(HistoryStore.defaultFile(environment: ["PLS_HOME": "/tmp/p", "XDG_STATE_HOME": "/tmp/s"]).path
             == "/tmp/p/history.jsonl")
