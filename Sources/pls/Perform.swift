@@ -42,7 +42,7 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, d
         try Prompt.fillMissing(&binding)
     }
     if asksFirst {
-        guard Prompt.confirm(binding) else { throw Exit.cancelled }
+        guard try Prompt.review(&binding) else { throw Exit.cancelled }
     }
 
     if dryRun {

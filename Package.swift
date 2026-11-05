@@ -13,9 +13,13 @@ let package = Package(
     ],
     targets: [
         .target(name: "PlsCore", dependencies: ["Yams"]),
+        // Line editing for prompts: libedit ships with macOS.
+        .target(name: "CEditLine", linkerSettings: [.linkedLibrary("edit")]),
         .executableTarget(
             name: "pls",
-            dependencies: ["PlsCore", .product(name: "ArgumentParser", package: "swift-argument-parser")]
+            dependencies: [
+                "PlsCore", "CEditLine", .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ]
         ),
         .testTarget(name: "PlsCoreTests", dependencies: ["PlsCore"])
     ]
