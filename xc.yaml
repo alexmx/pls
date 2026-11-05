@@ -25,6 +25,10 @@ commands:
   verify:
     run: "xc format:check && xc lint && xc build && xc test"
 
+  # How well the model picks and fills (needs Apple Intelligence; ~1 min). Example: xc evals -- dark
+  evals:
+    run: "swift run PlsEvals"
+
   # Run the CLI. Example: xc pls -- list
   pls:
     run: "swift run pls"
