@@ -35,18 +35,20 @@ enum Prompt {
         }
     }
 
-    /// Asks "Which one? [1-n]" until the answer is one of them. nil if the answer is empty; Ctrl-D cancels.
+    /// Asks "Which one? [1-n]" until the answer is one of them; returns its index. nil if the answer is empty; Ctrl-D
+    /// cancels.
     static func choose(among count: Int) throws -> Int? {
-        while true {
-            guard let answer = ask("Which one? [\(count == 1 ? "1" : "1-\(count)")] ") else { throw Exit.cancelled }
+        let range = count == 1 ? "1" : "1-\(count)"
+        var choice: Int?
+        try askUntilValid("Which one? [\(range)] ") { (answer: String) throws(BindingError) in
             let trimmed = answer.trimmingCharacters(in: .whitespaces)
-            if trimmed.isEmpty {
-                return nil
+            guard !trimmed.isEmpty else { return }
+            guard let number = Int(trimmed), (1...count).contains(number) else {
+                throw BindingError("pick \(range), or press Enter for none")
             }
-            if let number = Int(trimmed), (1...count).contains(number) {
-                return number - 1
-            }
+            choice = number - 1
         }
+        return choice
     }
 
     /// Asks for every value, prefilled with the current one; an empty answer resets or clears it (`Binding.edit`).

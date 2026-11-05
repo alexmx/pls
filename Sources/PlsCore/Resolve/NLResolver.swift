@@ -53,7 +53,8 @@ public struct NLResolver: Sendable {
 
     /// Why the model can't be used, or nil if it can.
     public static func unavailableReason(
-        _ availability: SystemLanguageModel.Availability, environment: [String: String] = [:]
+        _ availability: SystemLanguageModel.Availability,
+        environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> String? {
         if environment["PLS_MODEL"] == "off" {
             return "Apple's on-device model is turned off (PLS_MODEL=off)"

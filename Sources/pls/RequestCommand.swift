@@ -1,7 +1,8 @@
 import ArgumentParser
 import PlsCore
 
-/// `pls "<request>"`: the on-device model picks an automation and fills its values; the plan is shown before it runs.
+/// `pls "<request>"`: the on-device model picks an automation and fills its values, or without the model you pick one
+/// of the closest by words; the plan is shown before it runs.
 struct RequestCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "pls",
@@ -44,7 +45,7 @@ struct RequestCommand: AsyncParsableCommand {
             let closest = FuzzyMatcher.closest(to: request, in: library.automations)
             if !closest.isEmpty {
                 printError("Closest:")
-                table(closest.map { [$0.id, $0.description ?? ""] }, indent: "  ").forEach(printError)
+                list(closest, numbered: false)
             }
             throw Exit.notFound
         }
@@ -60,8 +61,7 @@ struct RequestCommand: AsyncParsableCommand {
             printError("pls: no automation shares a word with \"\(request)\"")
             throw Exit.modelUnavailable
         }
-        let rows = closest.enumerated().map { ["\($0.offset + 1)", $0.element.id, $0.element.description ?? ""] }
-        table(rows, indent: "  ").forEach(printError)
+        list(closest, numbered: true)
         guard !dryRun, Prompt.isInteractive else {
             printError(dryRun
                 ? "pls would ask which one to run."
@@ -69,6 +69,14 @@ struct RequestCommand: AsyncParsableCommand {
             throw Exit.modelUnavailable
         }
         guard let index = try Prompt.choose(among: closest.count) else { throw Exit.modelUnavailable }
-        return ParamBinder.bind(closest[index], request: request, values: [:])
+        return Binding(defaultsOf: closest[index], request: request)
+    }
+
+    /// The closest automations as `id  description` rows on stderr, numbered for choosing from.
+    private func list(_ automations: [Automation], numbered: Bool) {
+        let rows = automations.enumerated().map { index, automation in
+            (numbered ? ["\(index + 1)"] : []) + [automation.id, automation.description ?? ""]
+        }
+        table(rows, indent: "  ").forEach(printError)
     }
 }

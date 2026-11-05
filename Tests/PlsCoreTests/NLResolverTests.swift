@@ -56,11 +56,11 @@ struct NLResolverTests {
     }
 
     @Test func unavailableModelHasAReason() {
-        #expect(NLResolver.unavailableReason(.available) == nil)
-        #expect(NLResolver.unavailableReason(.unavailable(.appleIntelligenceNotEnabled))?
+        #expect(NLResolver.unavailableReason(.available, environment: [:]) == nil)
+        #expect(NLResolver.unavailableReason(.unavailable(.appleIntelligenceNotEnabled), environment: [:])?
             .contains("Apple Intelligence is off") == true)
-        #expect(NLResolver.unavailableReason(.unavailable(.deviceNotEligible)) != nil)
-        #expect(NLResolver.unavailableReason(.unavailable(.modelNotReady)) != nil)
+        #expect(NLResolver.unavailableReason(.unavailable(.deviceNotEligible), environment: [:]) != nil)
+        #expect(NLResolver.unavailableReason(.unavailable(.modelNotReady), environment: [:]) != nil)
     }
 }
 

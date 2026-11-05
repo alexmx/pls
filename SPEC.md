@@ -272,8 +272,8 @@ a model value that doesn't fit its param is dropped, so the param falls back to 
 Missing required values are prompted for, and the plan is shown.
 
 - **Fuzzy match:** ranks automations by the words a request shares with their id, name, description and examples
-  (lowercased, without filler words such as "the", "my", "make"). A shared word counts 1; a shared beginning of 4
-  letters, or all of a shorter word of at least 3, counts ½ ("darker" / "dark"). Ties go by id.
+  (lowercased, without filler words such as "the", "my", "what", "make"). A shared word counts 1; the same first 4
+  letters count ½ ("darker" / "dark"; "app" / "appearance" is too short to count). Ties go by id.
 - **No match (`none`):** print "No automation matches" plus up to 3 closest by fuzzy match; exit 65.
 - **Model unavailable** (Apple Intelligence off, unsupported Mac, still downloading, or `PLS_MODEL=off`): print why,
   list the up-to-3 closest by fuzzy match numbered, and ask `Which one?`. The pick gets its defaults, missing values

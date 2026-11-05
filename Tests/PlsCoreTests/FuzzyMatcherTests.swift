@@ -32,6 +32,25 @@ struct FuzzyMatcherTests {
         #expect(closest("compressing").first == "compress-images")
     }
 
+    @Test(arguments: [
+        ("dark", "dark", 1.0),
+        ("dark", "darker", 0.5),
+        ("compressing", "compress", 0.5),
+        ("images", "imagery", 0.5),
+        ("app", "appearance", 0.0),
+        ("port", "post", 0.0),
+        ("do", "dock", 0.0)
+    ])
+    func similarity(of word: String, and other: String, is expected: Double) {
+        #expect(FuzzyMatcher.similarity(word, other) == expected)
+        #expect(FuzzyMatcher.similarity(other, word) == expected)
+    }
+
+    @Test func aSharedBeginningOfAShortWordIsNoMatch() {
+        #expect(closest("what is the weather").isEmpty)
+        #expect(closest("how do I install an app").isEmpty)
+    }
+
     @Test func nothingInCommonIsNoMatch() {
         #expect(closest("order me a pizza").isEmpty)
         #expect(closest("").isEmpty)

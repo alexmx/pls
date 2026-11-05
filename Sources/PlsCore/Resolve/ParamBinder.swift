@@ -70,7 +70,8 @@ public struct Binding: Sendable, Equatable {
 
 extension Binding {
     /// Every param that has a default, set to it. Defaults are checked when a param is made, so they always fit.
-    init(defaultsOf automation: Automation, request: String? = nil) {
+    /// `request` is the natural-language request this run is for, if any.
+    public init(defaultsOf automation: Automation, request: String? = nil) {
         var values: [String: BoundValue] = [:]
         for param in automation.params {
             if let value = param.defaultValue {
