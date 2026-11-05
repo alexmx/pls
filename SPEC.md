@@ -281,8 +281,9 @@ Missing required values are prompted for, and the plan is shown.
   are prompted for, and the plan is reviewed as for any request. Picking none (Enter), no shared words, no terminal,
   or `--dry-run` exits 69 after the list; Ctrl-D is 130.
 - **`PLS_MODEL=off`** turns the model off for every request, e.g. to keep requests on plain word matching.
-- **Context budget:** `doctor` reports the routing list's token count against the model's context size
-  (8K on macOS 27). Narrowing the candidates before routing is post-MVP; the list is ~35 tokens per automation.
+- **Context budget:** `doctor` reports what routing takes (instructions, the listing and the schema, counted with the
+  model's own tokenizer) against its context size (8192 on macOS 27). About 170 tokens of fixed overhead plus ~40 per
+  described automation: the eval library's 18 take 866. Narrowing the candidates before routing is post-MVP.
 
 ## 8. History
 
@@ -328,7 +329,16 @@ Warnings:
 - missing `description` (not offered to the model)
 - shell files without a shebang (they run with `/bin/zsh`)
 
-Info: model availability, plus the routing list's token count vs. the context size.
+Info (never changes the exit code), as the last line:
+
+```
+Model: available · routing uses 298 of 8192 tokens (3%) for 3 automations
+```
+
+- From 75% of the context: `warning  the routing list uses most of the model's context; requests may fail as the
+  library grows`. Past 100%: requests will fail; describe fewer automations.
+- Model unavailable (including `PLS_MODEL=off`): `Model: <reason>; requests use word matching`.
+- No automation has a description: requests have nothing to pick from.
 
 ## 10. Code structure
 
