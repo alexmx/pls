@@ -14,6 +14,7 @@ Workflow: main
 ## Layout
 - `Sources/PlsCore/`: library with everything except terminal I/O, so a future GUI can reuse it
 - `Sources/pls/`: the CLI
+- `Sources/CEditLine/`: tiny C wrapper for libedit, which the CLI's prompts read lines through
 - `Tests/PlsCoreTests/`: Swift Testing; every top-level suite has `@Suite(.timeLimit(.minutes(1)))` (lint-enforced)
 - `examples/home/`: sample library (one of each automation format); doubles as format documentation
 - `poc/`: throwaway proof of concept for the model (own package, excluded from format/lint); results in `poc/results/`

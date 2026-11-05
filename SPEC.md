@@ -243,7 +243,12 @@ quotes: `pls "run the backup"` is one argument, so it's a request; unquoted, `pl
   Run? [Y/n/e]
 ```
 
-`e` edits each param in turn, with the current value prefilled.
+`e` edits each param in turn, with the current value prefilled (line editing via libedit), then shows the plan
+again. A changed value is marked `edited`; an empty answer resets a param to its default or clears an optional one,
+and a required param can't be left empty. Ctrl-D on an empty line, or Ctrl-C, cancels (130). Every confirm question
+offers `e`: requests and `confirm: true` automations alike.
+
+While the model works, a terminal shows `Thinking…` on stderr; it's erased before the plan or an error appears.
 
 **Exit codes:** the script's own code when it ran (128 + signal if killed); `64` usage or validation error; `65`
 unknown id or no NL match; `69` model unavailable and no fallback chosen; `1` the model couldn't answer a request
@@ -284,9 +289,9 @@ finishing at the same time don't interleave; lines that can't be read are skippe
 
 - `params`: every value the run used, defaults included. `chosen`: the ones typed, entered at a prompt, repeated
   or read from the request, as opposed to defaulted.
-- `via`: `run`, `again` or `request`. A request also records `request` (the words); `pls again` replays its values
-  without the words. Still to come with review editing: `edited` (whether the plan was changed before running). These
-  are the data "learn from accepted picks" needs.
+- `via`: `run`, `again` or `request`. A request also records `request` (the words) and `edited` (whether the plan
+  was changed before running), the data "learn from accepted picks" needs. `pls again` replays a request's values,
+  edits included, without the words.
 
 `pls history` shows recent runs: time, automation, the chosen values, ok or the exit code, and duration.
 
@@ -329,6 +334,7 @@ Sources/
     Run/                  # Runner protocol; ShellRunner, AppleScriptRunner, ShortcutRunner
     History/
   pls/                    # CLI: dispatch, prompts, plan display, completion
+  CEditLine/              # C wrapper for libedit (ships with macOS): prompts with a prefilled, editable line
 Tests/PlsCoreTests/       # parsers, binder, dispatch, runners (with fixture scripts)
 Evals/                    # NL eval set + runner, ported from poc/ (not run in `swift test`)
 ```
