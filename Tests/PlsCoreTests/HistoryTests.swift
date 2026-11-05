@@ -105,6 +105,28 @@ struct HistoryTests {
         ))
     }
 
+    @Test func requestRunKeepsTheWords() throws {
+        let automation = try makeAutomation("kill-port", params: "port: int")
+        let binding = ParamBinder.bind(automation, request: "free up port 3000", values: ["port": "3000"])
+        let home = try TempHome()
+        let store = HistoryStore(file: home.url.appending(path: "history.jsonl"))
+
+        try store.append(HistoryEntry(binding, via: .request, exit: 0, seconds: 0, at: Date(timeIntervalSince1970: 0)))
+
+        let line = try String(contentsOf: store.file, encoding: .utf8)
+        #expect(line.contains(#""request":"free up port 3000""#))
+        #expect(line.contains(#""via":"request""#))
+        #expect(store.recent(1).first?.request == "free up port 3000")
+    }
+
+    @Test func runsWithoutARequestLeaveTheKeyOut() throws {
+        let home = try TempHome()
+        let store = HistoryStore(file: home.url.appending(path: "history.jsonl"))
+        try store.append(makeEntry("a"))
+        #expect(try !String(contentsOf: store.file, encoding: .utf8).contains("request"))
+        #expect(store.recent(1).first?.request == nil)
+    }
+
     @Test func chosenValuesLeaveOutDefaults() {
         let entry = makeEntry("a", params: ["folder": "~/Desktop", "quality": "60"], chosen: ["quality"])
         #expect(entry.chosenValues == ["quality": "60"])
@@ -157,6 +179,12 @@ struct ReplayTests {
         #expect(throws: BindingError("quality: 80 is outside 1...50")) {
             try ParamBinder.replay(entry.chosenValues, for: automation)
         }
+    }
+
+    @Test func replayingARequestDoesntRepeatTheWords() throws {
+        let automation = try makeAutomation("a", params: "port: int")
+        let binding = try ParamBinder.replay(["port": "1"], for: automation)
+        #expect(HistoryEntry(binding, via: .again, exit: 0, seconds: 0, at: Date()).request == nil)
     }
 
     @Test func repeatedValuesStayChosenInTheNextEntry() throws {

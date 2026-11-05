@@ -25,7 +25,7 @@ public struct NLResolver: Sendable {
         do {
             guard let automation = try await route(request, among: candidates) else { return nil }
             let values = automation.params.isEmpty ? [:] : try await fill(request, for: automation)
-            return ParamBinder.bind(automation, fromRequest: values)
+            return ParamBinder.bind(automation, request: request, values: values)
         } catch let LanguageModelSession.GenerationError.exceededContextWindowSize(context) {
             throw ModelError(description: """
             the request and the \(candidates.count) automations offered don't fit in the model's context \

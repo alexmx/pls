@@ -19,9 +19,12 @@ public struct HistoryEntry: Codable, Sendable, Equatable {
     public let via: Trigger
     public let exit: Int32
     public let seconds: Double
+    /// The words of a natural-language request; absent for other runs.
+    public let request: String?
 
     public init(
-        at: Date, id: String, params: [String: String], chosen: [String], via: Trigger, exit: Int32, seconds: Double
+        at: Date, id: String, params: [String: String], chosen: [String], via: Trigger, exit: Int32, seconds: Double,
+        request: String? = nil
     ) {
         self.at = at
         self.id = id
@@ -30,6 +33,7 @@ public struct HistoryEntry: Codable, Sendable, Equatable {
         self.via = via
         self.exit = exit
         self.seconds = (seconds * 100).rounded() / 100
+        self.request = request
     }
 }
 
@@ -48,7 +52,8 @@ extension HistoryEntry {
             chosen: binding.values.filter { $0.value.source != .defaultValue }.map(\.key),
             via: trigger,
             exit: exit,
-            seconds: seconds
+            seconds: seconds,
+            request: binding.request
         )
     }
 }

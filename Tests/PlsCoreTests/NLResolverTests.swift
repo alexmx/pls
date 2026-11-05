@@ -53,7 +53,7 @@ struct NLResolverTests {
             "a", params: "quality: int(1...100) = 80", "mode: enum(dark|light)", "note: string?", "port: int"
         )
         let binding = ParamBinder.bind(
-            automation, fromRequest: ["quality": "150", "mode": "dark", "note": "", "gone": "x"]
+            automation, request: "r", values: ["quality": "150", "mode": "dark", "note": "", "gone": "x"]
         )
         #expect(binding.values == [
             "quality": BoundValue("80", .defaultValue),
@@ -81,6 +81,7 @@ struct NLResolverModelTests {
     @Test func picksAndFills() async throws {
         let binding = try #require(await NLResolver().resolve("free up port 3000", in: library))
         #expect(binding.automation.id == "kill-port")
+        #expect(binding.request == "free up port 3000")
         #expect(binding.values == ["port": BoundValue("3000", .request)])
     }
 

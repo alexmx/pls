@@ -27,6 +27,8 @@ public struct Binding: Sendable, Equatable {
     public let automation: Automation
     /// Params that have a value; optional params left empty are absent.
     public private(set) var values: [String: BoundValue]
+    /// The natural-language request the `.request` values were read from, if any.
+    public let request: String?
 
     /// Required params that still have no value, in declared order.
     public var missing: [Param] {
@@ -44,14 +46,14 @@ public struct Binding: Sendable, Equatable {
 
 extension Binding {
     /// Every param that has a default, set to it. Defaults are checked when a param is made, so they always fit.
-    init(defaultsOf automation: Automation) {
+    init(defaultsOf automation: Automation, request: String? = nil) {
         var values: [String: BoundValue] = [:]
         for param in automation.params {
             if let value = param.defaultValue {
                 values[param.name] = BoundValue(value, .defaultValue)
             }
         }
-        self.init(automation: automation, values: values)
+        self.init(automation: automation, values: values, request: request)
     }
 }
 
@@ -127,8 +129,8 @@ public enum ParamBinder {
 
     /// A binding from the values the model read out of a request (SPEC §7). A value that's empty or doesn't fit its
     /// param is left out, so the param falls back to its default or gets asked for; the plan shows which.
-    public static func bind(_ automation: Automation, fromRequest values: [String: String]) -> Binding {
-        var binding = Binding(defaultsOf: automation)
+    public static func bind(_ automation: Automation, request: String, values: [String: String]) -> Binding {
+        var binding = Binding(defaultsOf: automation, request: request)
         for param in automation.params {
             guard let value = values[param.name], !value.isEmpty else { continue }
             try? binding.supply(value, for: param, source: .request)
