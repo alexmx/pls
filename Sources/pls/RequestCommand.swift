@@ -27,10 +27,11 @@ struct RequestCommand: AsyncParsableCommand {
             printError(PlsCommand.helpMessage())
             throw Exit.usage
         }
+        let library = Library.loadDefault()
         let binding: Binding?
         do {
             binding = try await Prompt.showingStatus("Thinking…") { () async throws(NLResolver.ModelError) in
-                try await NLResolver().resolve(request, in: Library.loadDefault())
+                try await NLResolver().resolve(request, in: library)
             }
         } catch {
             printError("pls: \(error)")
@@ -41,6 +42,11 @@ struct RequestCommand: AsyncParsableCommand {
         }
         guard let binding else {
             printError("pls: no automation matches \"\(request)\"")
+            let closest = FuzzyMatcher.closest(to: request, in: library.automations)
+            if !closest.isEmpty {
+                printError("Closest:")
+                table(closest.map { [$0.id, $0.description ?? ""] }, indent: "  ").forEach(printError)
+            }
             throw Exit.notFound
         }
         try perform(binding, via: .request, yes: yes, dryRun: dryRun)
