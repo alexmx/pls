@@ -48,6 +48,23 @@ struct NLResolverTests {
         #expect(NLResolver.values(in: content) == ["port": "3000", "ratio": "0.5", "mode": "dark", "force": "true"])
     }
 
+    @Test(arguments: [(100, nil), (3071, nil), (3072, "may fail"), (4096, "may fail"), (4097, "will fail")])
+    func budgetWarnsAsTheRoutingListFillsTheContext(tokens: Int, warning: String?) {
+        let budget = RoutingBudget(tokens: tokens, contextSize: 4096, automations: 3)
+        if let warning {
+            #expect(budget.warning?.contains(warning) == true)
+        } else {
+            #expect(budget.warning == nil)
+        }
+    }
+
+    @Test func budgetNeedsTheModel() async {
+        await #expect(throws: NLResolver.ModelError.self) {
+            try await NLResolver(environment: ["PLS_MODEL": "off"])
+                .routingBudget(for: Library.load(home: URL(filePath: "/nonexistent")))
+        }
+    }
+
     @Test func plsModelOffTurnsTheModelOff() {
         #expect(NLResolver.unavailableReason(.available, environment: ["PLS_MODEL": "off"])?
             .contains("PLS_MODEL=off") == true)
@@ -82,6 +99,13 @@ struct NLResolverModelTests {
         let binding = try #require(await NLResolver().resolve("switch to dark mode", in: library))
         #expect(binding.automation.id == "dark-mode")
         #expect(binding.values["mode"] == BoundValue("dark", .request))
+    }
+
+    @Test func countsTheRoutingListAgainstTheContext() async throws {
+        let budget = try await NLResolver(environment: [:]).routingBudget(for: library)
+        #expect(budget.automations == 3)
+        #expect(budget.tokens > 0)
+        #expect(budget.tokens < budget.contextSize)
     }
 
     @Test func answersNoneWhenNothingFits() async throws {

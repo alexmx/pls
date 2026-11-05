@@ -90,27 +90,59 @@ public struct NLResolver: Sendable {
     /// Uppercase, so no id can be it: ids are lowercase kebab-case, and `none` is a valid one.
     private static let noMatch = "NONE"
 
-    private func route(_ request: String, among candidates: [Automation]) async throws -> Automation? {
-        let ids = candidates.map(\.id) + [Self.noMatch]
+    static let routingInstructions = """
+    You route a user's request to one of their saved automations.
+    Pick the automation whose purpose matches the request. \
+    If no automation can do what the user asked, answer "\(noMatch)". Do not guess.
+    """
+
+    static func routingPrompt(_ candidates: [Automation], request: String) -> String {
+        "Automations:\n\(routingList(candidates))\n\nRequest: \(request)"
+    }
+
+    /// The answer is limited to one of the ids or `noMatch`.
+    static func routingSchema(_ candidates: [Automation]) throws -> GenerationSchema {
         let root = DynamicGenerationSchema(name: "Route", properties: [
             .init(
                 name: "automation",
-                description: "id of the automation that does what the user asked, or \(Self.noMatch)",
-                schema: DynamicGenerationSchema(name: "AutomationID", anyOf: ids)
+                description: "id of the automation that does what the user asked, or \(noMatch)",
+                schema: DynamicGenerationSchema(name: "AutomationID", anyOf: candidates.map(\.id) + [noMatch])
             )
         ])
-        let session = LanguageModelSession(model: model, instructions: """
-        You route a user's request to one of their saved automations.
-        Pick the automation whose purpose matches the request. \
-        If no automation can do what the user asked, answer "\(Self.noMatch)". Do not guess.
-        """)
+        return try GenerationSchema(root: root, dependencies: [])
+    }
+
+    private func route(_ request: String, among candidates: [Automation]) async throws -> Automation? {
+        let session = LanguageModelSession(model: model, instructions: Self.routingInstructions)
         let response = try await session.respond(
-            to: "Automations:\n\(Self.routingList(candidates))\n\nRequest: \(request)",
-            schema: GenerationSchema(root: root, dependencies: []),
+            to: Self.routingPrompt(candidates, request: request),
+            schema: Self.routingSchema(candidates),
             options: GenerationOptions(samplingMode: .greedy)
         )
         let id = try response.content.value(String.self, forProperty: "automation")
         return candidates.first { $0.id == id }
+    }
+
+    // MARK: context budget
+
+    /// How much of the model's context routing a request over `library` takes (SPEC §7, §9): the instructions, the
+    /// prompt listing every described automation and the schema repeating their ids, without the request itself.
+    public func routingBudget(for library: Library) async throws(ModelError) -> RoutingBudget {
+        if let reason = Self.unavailableReason(model.availability, environment: environment) {
+            throw .unavailable(reason)
+        }
+        guard #available(macOS 26.4, *) else { throw .failed("counting tokens needs macOS 26.4 or later") }
+        let candidates = Self.candidates(in: library)
+        do {
+            let instructions = try await model.tokenCount(for: Instructions(Self.routingInstructions))
+            let prompt = try await model.tokenCount(for: Prompt(Self.routingPrompt(candidates, request: "")))
+            let schema = try await model.tokenCount(for: Self.routingSchema(candidates))
+            return RoutingBudget(
+                tokens: instructions + prompt + schema, contextSize: model.contextSize, automations: candidates.count
+            )
+        } catch {
+            throw .failed("couldn't count the routing list's tokens: \(error.localizedDescription)")
+        }
     }
 
     // MARK: fill
@@ -170,6 +202,25 @@ public struct NLResolver: Sendable {
                 number.rounded() == number && abs(number) < 1e15 ? String(Int(number)) : String(number)
             default: value.jsonString
             }
+        }
+    }
+}
+
+/// How much of the model's context routing takes, from `NLResolver.routingBudget(for:)`.
+public struct RoutingBudget: Equatable, Sendable {
+    public let tokens: Int
+    public let contextSize: Int
+    /// The automations offered to the model (the ones with a description).
+    public let automations: Int
+
+    /// What to tell the user once the routing list leaves little room for the request and the answer; nil until then.
+    public var warning: String? {
+        if tokens > contextSize {
+            "the routing list is bigger than the model's context, so requests will fail; describe fewer automations"
+        } else if tokens * 4 >= contextSize * 3 {
+            "the routing list uses most of the model's context; requests may fail as the library grows"
+        } else {
+            nil
         }
     }
 }
