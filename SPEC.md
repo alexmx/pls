@@ -214,9 +214,11 @@ pls doctor
 pls completion zsh
 ```
 
-**Dispatch:** a known subcommand wins; otherwise all arguments joined are a natural-language request. Automations
-are only ever run by id through `pls run`, so an id may equal a command name (`pls run list`). Open for milestone 3:
-how a request that starts with a command word (`pls run the backup`) is handled.
+**Dispatch:** a known subcommand (or `help`, `--help`, `--version`) wins; otherwise all arguments joined are a
+natural-language request, which also takes `-y`/`--yes` and `--dry-run`. Automations are only ever run by id through
+`pls run`, so an id may equal a command name (`pls run list`). A request that starts with a command word needs
+quotes: `pls "run the backup"` is one argument, so it's a request; unquoted, `pls run the backup` looks for the id
+`the` and, failing, suggests the quoted form.
 
 **Params on the CLI:** positional values fill the params not given by name, in declared order; or `--<name> <value>` /
 `--<name>=<value>`, where dashes may stand for underscores (`--older-than-days`). Bools also accept `--<name>` /
@@ -257,7 +259,9 @@ Two stages, both with greedy (deterministic) sampling and a fresh session each:
    every property optional, enums restricted to their options, int/number ranges as guides.
    Instructions: fill only values the request states or clearly implies; never invent.
 
-Then the values are merged and validated (§4.3), missing required values are prompted for, and the plan is shown.
+Only automations with a description are offered to the router. Then the values are merged and validated (§4.3):
+a model value that doesn't fit its param is dropped, so the param falls back to its default or is prompted for.
+Missing required values are prompted for, and the plan is shown.
 
 - **No match (`none`):** print "No automation matches" plus the 3 closest by fuzzy match; exit 65.
 - **Model unavailable** (Apple Intelligence off, unsupported Mac): fall back to fuzzy matching on
@@ -279,8 +283,9 @@ finishing at the same time don't interleave; lines that can't be read are skippe
 
 - `params`: every value the run used, defaults included. `chosen`: the ones typed, entered at a prompt or repeated,
   as opposed to defaulted.
-- `via`: `run` or `again`. Natural language (milestone 3) will add `"via":"request"` plus `request` (the words) and
-  `edited` (whether the plan was changed before running), the data "learn from accepted picks" needs.
+- `via`: `run`, `again` or `request`. A request also records `request` (the words); `pls again` replays its values
+  without the words. Still to come with review editing: `edited` (whether the plan was changed before running). These
+  are the data "learn from accepted picks" needs.
 
 `pls history` shows recent runs: time, automation, the chosen values, ok or the exit code, and duration.
 
