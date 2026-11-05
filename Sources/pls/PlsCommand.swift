@@ -6,8 +6,10 @@ import PlsCore
 /// else is a request. A default subcommand can't do this, as its name would become one more word a request can't
 /// start with.
 ///
-/// Commands run from here, on the main actor, rather than through ArgumentParser's async `main`, which would run them
-/// on a background thread: prompting from one, Ctrl-C and SIGTERM didn't end pls.
+/// Commands that prompt must run on the main thread: prompting from a background thread, Ctrl-C and SIGTERM didn't end
+/// pls. So `main` parses and runs commands itself on the main actor, rather than through ArgumentParser's async `main`,
+/// which would run them on a background thread. That covers synchronous commands; an async command's `run()` is
+/// `@MainActor` itself (doctor, requests), since an async call would otherwise leave the main actor.
 @main
 @MainActor
 enum Main {

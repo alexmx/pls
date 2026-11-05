@@ -112,6 +112,22 @@ struct NLResolverModelTests {
         #expect(try await NLResolver().resolve("order me a pizza", in: library) == nil)
     }
 
+    /// A library too big for the model's context gets its own message, not the generic "couldn't answer".
+    @Test func aLibraryTooBigForTheContextSaysSo() async throws {
+        let home = try TempHome()
+        for index in 0..<300 {
+            try home.write("task-\(index).sh", """
+            # @pls.description: Do task number \(index) with the files in a folder and report how it went afterwards
+            # @pls.example: run task \(index) on my documents folder please
+            """)
+        }
+        let library = Library.load(home: home.url)
+        let error = await #expect(throws: NLResolver.ModelError.self) {
+            try await NLResolver(environment: [:]).resolve("free up port 3000", in: library)
+        }
+        #expect(error?.description.contains("don't fit in the model's context") == true, "\(String(describing: error))")
+    }
+
     /// "none" is a valid id, so the no-match answer must be something an id can't be.
     @Test func anAutomationCalledNoneIsntTheNoMatchAnswer() async throws {
         let home = try TempHome()

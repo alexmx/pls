@@ -32,23 +32,40 @@ public struct NLResolver: Sendable {
 
     /// The binding for `request`, or nil if no automation in `library` does what it asks.
     public func resolve(_ request: String, in library: Library) async throws(ModelError) -> Binding? {
-        if let reason = Self.unavailableReason(model.availability, environment: environment) {
-            throw .unavailable(reason)
-        }
+        try requireModel()
         let candidates = Self.candidates(in: library)
         guard !candidates.isEmpty else { return nil }
         do {
             guard let automation = try await route(request, among: candidates) else { return nil }
             let values = automation.params.isEmpty ? [:] : try await fill(request, for: automation)
             return ParamBinder.bind(automation, request: request, values: values)
-        } catch let LanguageModelSession.GenerationError.exceededContextWindowSize(context) {
+        } catch where Self.isContextOverflow(error) {
             throw .failed("""
-            the request and the \(candidates.count) automations offered don't fit in the model's context \
-            (\(context.debugDescription))
+            the request and the \(candidates.count) automations offered don't fit in the model's context; \
+            run `pls doctor`, and describe fewer automations
             """)
         } catch {
             throw .failed("the model couldn't answer: \(error.localizedDescription)")
         }
+    }
+
+    /// Throws `.unavailable` with the reason when the model can't be used.
+    private func requireModel() throws(ModelError) {
+        if let reason = Self.unavailableReason(model.availability, environment: environment) {
+            throw .unavailable(reason)
+        }
+    }
+
+    /// Whether `error` says the input didn't fit in the context. macOS 27 throws `LanguageModelError`; macOS 26 the
+    /// `GenerationError` case it deprecates.
+    private static func isContextOverflow(_ error: any Error) -> Bool {
+        if #available(macOS 27, *), case LanguageModelError.contextSizeExceeded = error {
+            return true
+        }
+        if case LanguageModelSession.GenerationError.exceededContextWindowSize = error {
+            return true
+        }
+        return false
     }
 
     /// Why the model can't be used, or nil if it can.
@@ -128,9 +145,7 @@ public struct NLResolver: Sendable {
     /// How much of the model's context routing a request over `library` takes (SPEC §7, §9): the instructions, the
     /// prompt listing every described automation and the schema repeating their ids, without the request itself.
     public func routingBudget(for library: Library) async throws(ModelError) -> RoutingBudget {
-        if let reason = Self.unavailableReason(model.availability, environment: environment) {
-            throw .unavailable(reason)
-        }
+        try requireModel()
         guard #available(macOS 26.4, *) else { throw .failed("counting tokens needs macOS 26.4 or later") }
         let candidates = Self.candidates(in: library)
         do {

@@ -7,6 +7,7 @@ struct DoctorCommand: AsyncParsableCommand {
         commandName: "doctor", abstract: "Check your automations for problems, and whether the model can be used."
     )
 
+    @MainActor
     func run() async throws {
         let library = Library.loadDefault()
         let errors = report(Doctor.check(library), in: library)
@@ -34,7 +35,7 @@ struct DoctorCommand: AsyncParsableCommand {
             print("\n" + (file.map { relativePath($0, to: library.automationsDirectory) } ?? "(library)"))
             for problem in problems where problem.file == file {
                 let location = problem.line.map { "line \($0): " } ?? ""
-                print("  \(problem.severity.rawValue.padded(to: 7))  \(location)\(problem.message)")
+                print(row(problem.severity, location + problem.message))
             }
         }
 
@@ -58,7 +59,7 @@ struct DoctorCommand: AsyncParsableCommand {
             print("\nModel: available · routing uses \(budget.tokens) of \(budget.contextSize) tokens (\(percent)%) "
                 + "for \(count) automation\(count == 1 ? "" : "s")")
             if let warning = budget.warning {
-                print("  warning  \(warning)")
+                print(row(.warning, warning))
             }
         } catch {
             switch error {
@@ -67,6 +68,11 @@ struct DoctorCommand: AsyncParsableCommand {
             }
         }
     }
+}
+
+/// `  warning  text`: the severity in a column, as for every row doctor prints.
+private func row(_ severity: Diagnostic.Severity, _ text: String) -> String {
+    "  \(severity.rawValue.padded(to: 7))  \(text)"
 }
 
 /// The file's path inside the library folder, or its full display path if it's elsewhere.

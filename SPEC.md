@@ -329,7 +329,7 @@ Warnings:
 - missing `description` (not offered to the model)
 - shell files without a shebang (they run with `/bin/zsh`)
 
-Info (never changes the exit code), as the last line:
+Info (never changes the exit code), at the end:
 
 ```
 Model: available · routing uses 298 of 8192 tokens (3%) for 3 automations
