@@ -171,7 +171,8 @@ Only Shortcuts listed in `shortcuts.yaml` are part of the library. Manage the fi
 - No default → **required**. A `?` after the type → optional with no default (e.g. `string?`).
 - The default is everything between `=` and ` -- `, trimmed; surrounding quotes are removed. A default can't
   contain ` -- ` (even quoted); use the folder form for that.
-- Reserved names: `yes`, `dry_run`, `help` (CLI flags) and `id`, `home`, `automation_dir` (their `PLS_` variables are set by pls).
+- Reserved names: `yes`, `dry_run`, `help` (CLI flags), `id`, `automation_dir` (their `PLS_` variables are set by
+  pls) and `home`, `model` (their `PLS_` variables are settings, §2 and §7).
 
 ### 4.3 Binding order
 
@@ -188,8 +189,9 @@ usual; pls waits for it to finish rather than quitting first.
 
 Environment for all kinds:
 - `PLS_<NAME>` for every param, with the name in uppercase (`PLS_PORT=3000`). Optional params with no value are unset.
-- Every other `PLS_` variable from the calling environment is removed, except `PLS_HOME`: a `pls run` inside a script
-  uses the same library but inherits nothing else from the automation that called it.
+- Every other `PLS_` variable from the calling environment is removed, except the settings `PLS_HOME` and
+  `PLS_MODEL`: a `pls run` inside a script is set up the same way but inherits nothing else from the automation that
+  called it.
 - `PLS_ID`, and for folder automations `PLS_AUTOMATION_DIR` (where its files live).
 
 | Kind | How it's run |
@@ -269,9 +271,15 @@ Only automations with a description are offered to the router. Then the values a
 a model value that doesn't fit its param is dropped, so the param falls back to its default or is prompted for.
 Missing required values are prompted for, and the plan is shown.
 
-- **No match (`none`):** print "No automation matches" plus the 3 closest by fuzzy match; exit 65.
-- **Model unavailable** (Apple Intelligence off, unsupported Mac): fall back to fuzzy matching on
-  id/name/description/examples, show the top 3 to choose from, then prompt for params.
+- **Fuzzy match:** ranks automations by the words a request shares with their id, name, description and examples
+  (lowercased, without filler words such as "the", "my", "make"). A shared word counts 1; a shared beginning of 4
+  letters, or all of a shorter word of at least 3, counts ½ ("darker" / "dark"). Ties go by id.
+- **No match (`none`):** print "No automation matches" plus up to 3 closest by fuzzy match; exit 65.
+- **Model unavailable** (Apple Intelligence off, unsupported Mac, still downloading, or `PLS_MODEL=off`): print why,
+  list the up-to-3 closest by fuzzy match numbered, and ask `Which one?`. The pick gets its defaults, missing values
+  are prompted for, and the plan is reviewed as for any request. Picking none (Enter), no shared words, no terminal,
+  or `--dry-run` exits 69 after the list; Ctrl-D is 130.
+- **`PLS_MODEL=off`** turns the model off for every request, e.g. to keep requests on plain word matching.
 - **Context budget:** `doctor` reports the routing list's token count against the model's context size
   (8K on macOS 27). Narrowing the candidates before routing is post-MVP; the list is ~35 tokens per automation.
 
