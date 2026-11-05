@@ -1,4 +1,5 @@
 import Foundation
+import PlsCore
 @testable import PlsEvals
 import Testing
 
@@ -10,14 +11,17 @@ struct ScoreTests {
         values: ["folder": .oneOf(["~/Pictures/trip"]), "quality": .oneOf(["40"])]
     )
 
+    /// Values the model filled, plus `defaults` left as they were.
     private func verdict(
-        _ evalCase: EvalCase, picked: String?, _ values: [String: String] = [:], fromRequest: Set<String>? = nil
+        _ evalCase: EvalCase, picked: String?, _ filled: [String: String] = [:], defaults: [String: String] = [:]
     ) -> Verdict {
-        score(evalCase, picked: picked, values: values, fromRequest: fromRequest ?? Set(values.keys))
+        let values = filled.mapValues { BoundValue($0, .request) }
+            .merging(defaults.mapValues { BoundValue($0, .defaultValue) }) { filled, _ in filled }
+        return score(evalCase, picked: picked, values: values)
     }
 
     @Test func rightPickAndValuesPass() {
-        #expect(verdict(compress, picked: "compress-images", ["folder": "~/Pictures/trip/", "quality": "40.0"]).passed)
+        #expect(verdict(compress, picked: "compress-images", ["folder": "~/Pictures/trip/", "quality": "40"]).passed)
     }
 
     @Test func wrongPickFailsWithoutCheckingValues() {
@@ -33,16 +37,13 @@ struct ScoreTests {
 
     @Test func aDefaultCanSatisfyAnExpectedValue() {
         let desktop = EvalCase(request: "r", expect: "compress-images", values: ["folder": .oneOf(["~/Desktop"])])
-        #expect(verdict(desktop, picked: "compress-images", ["folder": "~/Desktop"], fromRequest: []).passed)
+        #expect(verdict(desktop, picked: "compress-images", defaults: ["folder": "~/Desktop"]).passed)
     }
 
     @Test func valuesTheRequestDidntGiveAreInvented() {
         let squash = EvalCase(request: "my screenshots folder is huge", expect: "compress-images")
         let result = verdict(
-            squash,
-            picked: "compress-images",
-            ["folder": "my screenshots folder", "quality": "80"],
-            fromRequest: ["folder"]
+            squash, picked: "compress-images", ["folder": "my screenshots folder"], defaults: ["quality": "80"]
         )
         #expect(result.invented == ["folder=my screenshots folder"])
         #expect(!result.passed)
@@ -61,19 +62,37 @@ struct ScoreTests {
         #expect(!verdict(compress, picked: nil).passed)
     }
 
-    @Test(arguments: [("60%", "60"), ("'zsh aliases'", "Zsh Aliases"), ("~/x/", "~/x"), ("7.0", "7")])
-    func matchingIgnoresCaseQuotesSlashesAndNumberForm(got: String, want: String) {
+    @Test(arguments: [("60%", "60"), ("'zsh aliases'", "Zsh Aliases"), ("~/x/", "~/x")])
+    func matchingIgnoresCaseQuotesSlashesAndPercent(got: String, want: String) {
         #expect(EvalCase.Expected.oneOf([want]).accepts(got))
     }
+}
 
-    @Test func theCasesFileLoads() throws {
-        let file = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../cases.yaml")
-        let cases = try EvalCase.load(file)
-        #expect(cases.count == 30)
-        #expect(cases.filter { $0.expect == EvalCase.noMatch }.count == 3)
-        let quit = try #require(cases.first { $0.expect == "quit-apps" })
-        #expect(quit.values["except"] == .oneOf(["Slack, Safari", "Slack,Safari", "Slack and Safari"]))
-        #expect(cases.first { $0.expect == "new-note" }?.values["title"] == .any)
-        #expect(cases.first { $0.request == "mute" }?.values["level"] == .oneOf(["0"]))
+/// The cases must agree with the eval library, or a typo would look like a model failure (a wrong id or option) or an
+/// invented value (a misspelled `allow` name).
+@Suite(.timeLimit(.minutes(1)))
+struct CasesFileTests {
+    private let evals = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../..")
+
+    @Test func casesMatchTheLibrary() throws {
+        let cases = try EvalCase.load(evals.appending(path: "cases.yaml"))
+        let library = Library.load(home: evals.appending(path: "library"))
+        #expect(!cases.isEmpty)
+
+        for evalCase in cases where evalCase.expect != EvalCase.noMatch {
+            let automation = try #require(library.automation(id: evalCase.expect), "unknown id in: \(evalCase.request)")
+            let params = Dictionary(uniqueKeysWithValues: automation.params.map { ($0.name, $0) })
+            for name in evalCase.allow {
+                #expect(params[name] != nil, "\(evalCase.request): \(automation.id) has no param \(name)")
+            }
+            for (name, expected) in evalCase.values {
+                let param = try #require(params[name], "\(evalCase.request): \(automation.id) has no param \(name)")
+                if case let .oneOf(options) = expected {
+                    for option in options {
+                        #expect(param.type.problem(with: option) == nil, "\(evalCase.request): \(name)=\(option)")
+                    }
+                }
+            }
+        }
     }
 }

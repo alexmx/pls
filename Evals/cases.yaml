@@ -2,14 +2,16 @@
 #
 # expect: the automation id the request should pick, or none.
 # values: every value the request states or clearly implies. Matching ignores case, surrounding quotes and spaces,
-#   and a trailing / or %; numbers compare as numbers. A list gives the acceptable answers; "*" accepts any value.
+#   and a trailing / or %. A list gives the acceptable answers; "*" accepts any value.
 # allow:  params the model may fill without it counting as invented, when the request leaves them open.
+# A default also satisfies an expected value, so a case that tests filling should state values that differ from the
+# defaults (a missed value would otherwise pass).
 # A case fails if the pick is wrong, an expected value is missing or wrong, or the model fills any other param
 # (an invented value: SPEC §7 says fill only what the request states).
 
-- request: compress the pngs on my desktop to 60% quality
+- request: compress the jpgs on my desktop to 60% quality
   expect: compress-images
-  values: { folder: ~/Desktop, quality: 60, format: png }
+  values: { folder: ~/Desktop, quality: 60, format: jpg }
 
 - request: my screenshots folder is huge, squash those images
   expect: compress-images
@@ -83,6 +85,10 @@
   expect: focus-mode
   values: { mode: do-not-disturb, minutes: 45 }
 
+- request: sleep focus for 45 min
+  expect: focus-mode
+  values: { mode: sleep, minutes: 45 }
+
 - request: switch to work focus
   expect: focus-mode
   values: { mode: work }
@@ -104,7 +110,7 @@
 
 - request: quit everything except Slack and Safari
   expect: quit-apps
-  values: { except: ["Slack, Safari", "Slack,Safari", Slack and Safari] }
+  values: { except: ["Slack, Safari", "Slack,Safari", "Safari, Slack", "Safari,Slack"] }
 
 - request: commit my dotfiles with message 'zsh aliases'
   expect: backup-dotfiles

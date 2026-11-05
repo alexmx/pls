@@ -68,14 +68,12 @@ struct EvalCase: Decodable, Equatable {
     }
 }
 
-/// Lowercased, without surrounding spaces and quotes or a trailing `/` or `%`; whole numbers lose a `.0`.
+/// Lowercased, without surrounding spaces and quotes or a trailing `/` or `%`. Numbers need nothing more: bound int
+/// values are whole numbers, and the model's numbers come without a trailing `.0` (`NLResolver.values(in:)`).
 func normalized(_ value: String) -> String {
     var text = value.lowercased().trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "'\"")))
     while text.hasSuffix("/") || text.hasSuffix("%") {
         text.removeLast()
-    }
-    if let number = Double(text) {
-        return number.rounded() == number && abs(number) < 1e15 ? String(Int(number)) : String(number)
     }
     return text
 }

@@ -1,43 +1,44 @@
-pls 0.1.0 · Version 27.2 (Build 26B123) · 30 cases
+pls 0.1.0 · Version 27.2 (Build 26B123) · 31 cases
 
-✓  1.90s  compress the pngs on my desktop to 60% quality → compress-images  folder=~/Desktop quality=60
-✗  1.33s  my screenshots folder is huge, squash those images → compress-images  folder=my screenshots folder quality=50
+✓  1.50s  compress the jpgs on my desktop to 60% quality → compress-images  folder=~/Desktop format=jpg quality=60
+✗  1.34s  my screenshots folder is huge, squash those images → compress-images  folder=my screenshots folder quality=50
       invented: folder=my screenshots folder, quality=50
-✓  1.46s  compress jpgs in ~/Pictures/trip at 40 → compress-images  folder=~/Pictures/trip format=jpg quality=40
-✗  1.22s  make the photos in ~/Pictures/trip half as big → compress-images (want resize-images)  folder=~/Pictures/trip
-✓  1.29s  scale images on desktop to a quarter of their size → resize-images  folder=~/Desktop percent=25
-✓  1.24s  delete downloads older than a week → clean-downloads  older_than_days=7
-✗  1.24s  my downloads folder is a mess → clean-downloads  older_than_days=30
+✓  1.48s  compress jpgs in ~/Pictures/trip at 40 → compress-images  folder=~/Pictures/trip format=jpg quality=40
+✗  1.23s  make the photos in ~/Pictures/trip half as big → compress-images (want resize-images)  folder=~/Pictures/trip
+✓  1.30s  scale images on desktop to a quarter of their size → resize-images  folder=~/Desktop percent=25
+✓  1.25s  delete downloads older than a week → clean-downloads  older_than_days=7
+✗  1.22s  my downloads folder is a mess → clean-downloads  older_than_days=30
       invented: older_than_days=30
-✓  0.79s  empty the trash → empty-trash
-✓  1.13s  it's too bright, switch to dark → dark-mode  mode=dark
-✓  1.13s  light mode please → dark-mode  mode=light
-✓  1.17s  mute → set-volume  level=0
-✓  1.21s  turn the volume down to 20 percent → set-volume  level=20
-✓  1.38s  open quick in cursor → open-project  editor=cursor project=quick
-✗  1.66s  I want to work on my-website → open-project  editor=xcode project=my-website
+✓  0.78s  empty the trash → empty-trash
+✓  1.17s  it's too bright, switch to dark → dark-mode  mode=dark
+✓  1.17s  light mode please → dark-mode  mode=light
+✓  1.15s  mute → set-volume  level=0
+✓  1.16s  turn the volume down to 20 percent → set-volume  level=20
+✓  1.22s  open quick in cursor → open-project  editor=cursor project=quick
+✗  1.32s  I want to work on my-website → open-project  editor=xcode project=my-website
       invented: editor=xcode
-✗  1.21s  pull latest for all repos → git-pull-all  folder=~/Projects
+✗  1.16s  pull latest for all repos → git-pull-all  folder=~/Projects
       invented: folder=~/Projects
-✓  0.77s  update homebrew stuff → brew-upgrade
-✓  1.17s  port 5173 is already in use → kill-port  port=5173
-✓  1.18s  kill whatever is running on 3000 → kill-port  port=3000
-✓  1.55s  note: call the dentist on monday → new-note  title=call the dentist on monday
-✓  1.59s  dnd for 45 min → focus-mode  minutes=45 mode=do-not-disturb
-✗  1.31s  switch to work focus → focus-mode  minutes=0 mode=work
+✓  0.75s  update homebrew stuff → brew-upgrade
+✓  1.15s  port 5173 is already in use → kill-port  port=5173
+✓  1.16s  kill whatever is running on 3000 → kill-port  port=3000
+✓  1.27s  note: call the dentist on monday → new-note  title=call the dentist on monday
+✓  1.33s  dnd for 45 min → focus-mode  minutes=45 mode=do-not-disturb
+✓  1.28s  sleep focus for 45 min → focus-mode  minutes=45 mode=sleep
+✗  1.28s  switch to work focus → focus-mode  minutes=0 mode=work
       invented: minutes=0
-✓  1.31s  start a 50 minute pomodoro for the tax return → pomodoro  minutes=50 task=tax return
-✓  1.34s  make a gif out of ~/Movies/demo.mov → convert-video  file=~/Movies/demo.mov format=gif
-✓  0.77s  sites aren't loading, maybe dns → flush-dns
-✓  1.14s  turn wifi off → wifi  state=off
-✓  1.24s  quit everything except Slack and Safari → quit-apps  except=Slack,Safari
-✓  1.18s  commit my dotfiles with message 'zsh aliases' → backup-dotfiles  message=zsh aliases
-✓  0.74s  what's the weather in Paris → none
-✓  0.73s  send an email to my boss → none
+✓  1.29s  start a 50 minute pomodoro for the tax return → pomodoro  minutes=50 task=tax return
+✓  1.31s  make a gif out of ~/Movies/demo.mov → convert-video  file=~/Movies/demo.mov format=gif
+✓  0.76s  sites aren't loading, maybe dns → flush-dns
+✓  1.15s  turn wifi off → wifi  state=off
+✓  1.28s  quit everything except Slack and Safari → quit-apps  except=Slack,Safari
+✓  1.15s  commit my dotfiles with message 'zsh aliases' → backup-dotfiles  message=zsh aliases
+✓  0.71s  what's the weather in Paris → none
+✓  0.72s  send an email to my boss → none
 ✓  0.72s  restart my mac → none
 
-passed    24/30
-routing   29/30 picked right
-values    20/20 right (cases picked right that expect values)
+passed    25/31
+routing   30/31 picked right
+values    21/21 right (cases picked right that expect values)
 invented  5 cases filled a value the request didn't give
-latency   median 1.22s · p90 1.59s · max 1.90s
+latency   median 1.22s · p90 1.33s · max 1.50s

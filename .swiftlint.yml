@@ -7,6 +7,8 @@ only_rules:
 included:
   - Sources
   - Tests
+  - Evals/Sources
+  - Evals/Tests
 
 custom_rules:
   suite_without_time_limit:

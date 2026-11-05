@@ -24,6 +24,6 @@ let package = Package(
         .testTarget(name: "PlsCoreTests", dependencies: ["PlsCore"]),
         // `xc evals`: how well the model picks and fills, on a fixed set of requests. Not run by `swift test`.
         .executableTarget(name: "PlsEvals", dependencies: ["PlsCore", "Yams"], path: "Evals/Sources/PlsEvals"),
-        .testTarget(name: "PlsEvalsTests", dependencies: ["PlsEvals"], path: "Evals/Tests/PlsEvalsTests")
+        .testTarget(name: "PlsEvalsTests", dependencies: ["PlsEvals", "PlsCore"], path: "Evals/Tests/PlsEvalsTests")
     ]
 )

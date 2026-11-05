@@ -3,7 +3,8 @@ import PlsCore
 
 /// `xc evals`: resolves every request in `Evals/cases.yaml` against `Evals/library` with the on-device model, exactly
 /// as `pls "<request>"` does, and reports how it went. An optional argument runs only the cases whose request contains
-/// it. Exits 1 if a case failed, 2 if the model can't be used.
+/// it. Exits 1 if a case failed; 2 if the model can't be used, the eval library has problems or no case matches the
+/// filter.
 @main
 enum PlsEvals {
     private static let root = URL(filePath: #filePath)
@@ -13,6 +14,10 @@ enum PlsEvals {
         var cases = try EvalCase.load(root.appending(path: "cases.yaml"))
         if let filter = CommandLine.arguments.dropFirst().first {
             cases = cases.filter { $0.request.localizedCaseInsensitiveContains(filter) }
+            guard !cases.isEmpty else {
+                print("No case's request contains \"\(filter)\".")
+                exit(2)
+            }
         }
         let library = Library.load(home: root.appending(path: "library"))
         guard library.diagnostics.allSatisfy({ $0.severity != .error }) else {
@@ -20,7 +25,9 @@ enum PlsEvals {
             exit(2)
         }
 
-        print("pls \(Pls.version) · \(ProcessInfo.processInfo.operatingSystemVersionString) · \(cases.count) cases\n")
+        print(
+            "pls \(Pls.version) · \(ProcessInfo.processInfo.operatingSystemVersionString) · \(cases.count) case\(cases.count == 1 ? "" : "s")\n"
+        )
         var verdicts: [Verdict] = []
         var seconds: [Double] = []
         for evalCase in cases {
@@ -39,19 +46,10 @@ enum PlsEvals {
             let elapsed = (ContinuousClock.now - start) / .seconds(1)
             seconds.append(elapsed)
 
-            let bound = binding?.values ?? [:]
-            let values = bound.mapValues(\.value)
-            let fromRequest = Set(bound.filter { $0.value.source == .request }.keys)
-            let verdict = score(evalCase, picked: binding?.automation.id, values: values, fromRequest: fromRequest)
+            let values = binding?.values ?? [:]
+            let verdict = score(evalCase, picked: binding?.automation.id, values: values)
             verdicts.append(verdict)
-            print(line(
-                evalCase,
-                picked: binding?.automation.id,
-                values: values,
-                fromRequest: fromRequest,
-                verdict: verdict,
-                seconds: elapsed
-            ))
+            print(line(evalCase, picked: binding?.automation.id, values: values, verdict: verdict, seconds: elapsed))
         }
 
         print("\n" + summary(cases, verdicts, seconds: seconds))
@@ -60,13 +58,14 @@ enum PlsEvals {
         }
     }
 
-    /// `✓ 1.32s  compress the pngs on my desktop… → compress-images  quality=60 format=png`, plus what went wrong.
+    /// `✓ 1.32s  compress the jpgs on my desktop… → compress-images  format=jpg quality=60`: the values the model
+    /// filled, plus what went wrong.
     static func line(
-        _ evalCase: EvalCase, picked: String?, values: [String: String], fromRequest: Set<String>, verdict: Verdict,
-        seconds: Double
+        _ evalCase: EvalCase, picked: String?, values: [String: BoundValue], verdict: Verdict, seconds: Double
     ) -> String {
         let pick = picked ?? EvalCase.noMatch
-        let filled = fromRequest.sorted().map { "\($0)=\(values[$0] ?? "")" }.joined(separator: " ")
+        let filled = values.filter { $0.value.source == .request }.sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value.value)" }.joined(separator: " ")
         var text = "\(verdict.passed ? "✓" : "✗") \(String(format: "%5.2fs", seconds))  \(evalCase.request) → "
             + (verdict.routed ? pick : "\(pick) (want \(evalCase.expect))")
             + (filled.isEmpty ? "" : "  \(filled)")
