@@ -6,6 +6,8 @@ public struct HistoryEntry: Codable, Sendable, Equatable {
     public enum Trigger: String, Codable, Sendable {
         case run
         case again
+        /// A natural-language request.
+        case request
     }
 
     public let at: Date

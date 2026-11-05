@@ -2,24 +2,32 @@ import ArgumentParser
 import Foundation
 import PlsCore
 
-/// What `pls run` and `pls again` share once they have a binding: ask for what's missing, confirm if the
-/// automation wants it, then either preview (--dry-run) or run it (which records it in history).
+/// What `pls run`, `pls again` and requests share once they have a binding: ask for what's missing, confirm if
+/// the automation or the trigger wants it, then either preview (--dry-run) or run it (which records it in history).
 func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, dryRun: Bool) throws {
     var binding = binding
     let automation = binding.automation
-    let asksFirst = automation.confirm && !yes && !dryRun
+    // A request is the model's guess, so it's always shown before it runs (SPEC §6).
+    let asksFirst = (automation.confirm || trigger == .request) && !yes && !dryRun
 
     // Without a terminal nothing can be asked: fail before announcing anything.
     if !dryRun, !Prompt.isInteractive {
         if !binding.missing.isEmpty {
             let names = binding.missing.map { "--\($0.name)" }.joined(separator: ", ")
-            printError(trigger == .again
-                ? "pls: \(automation.id) now needs \(names), which the last run didn't have; use `pls run \(automation.id)`"
-                : "pls: missing \(names); give it on the command line (there's no terminal to ask in)")
+            let message = switch trigger {
+            case .run: "pls: missing \(names); give it on the command line (there's no terminal to ask in)"
+            case .again:
+                "pls: \(automation.id) now needs \(names), which the last run didn't have; use `pls run \(automation.id)`"
+            case .request:
+                "pls: the request doesn't give \(names) and there's no terminal to ask in; use `pls run \(automation.id)`"
+            }
+            printError(message)
             throw Exit.usage
         }
         if asksFirst {
-            printError("pls: \(automation.id) asks before running; pass --yes to run it without a terminal")
+            printError(trigger == .request
+                ? "pls: a request asks before running; pass --yes to run it without a terminal"
+                : "pls: \(automation.id) asks before running; pass --yes to run it without a terminal")
             throw Exit.usage
         }
     }

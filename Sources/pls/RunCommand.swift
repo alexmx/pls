@@ -25,7 +25,19 @@ struct RunCommand: ParsableCommand {
     var values: [String] = []
 
     func run() throws {
-        let automation = try Library.loadDefault().require(id)
+        let library = Library.loadDefault()
+        let automation: Automation
+        do {
+            automation = try library.require(id)
+        } catch {
+            // `pls run the backup` was probably meant as a request; command names win (SPEC §6).
+            if !values.isEmpty, !library.leftOutIDs.contains(id) {
+                printError(
+                    "pls: to ask in plain words, quote the request: pls \"\((["run", id] + values).joined(separator: " "))\""
+                )
+            }
+            throw error
+        }
         let binding: Binding
         do {
             binding = try ParamBinder.bind(automation, arguments: values)

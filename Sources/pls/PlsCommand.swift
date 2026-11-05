@@ -2,11 +2,33 @@ import ArgumentParser
 import Foundation
 import PlsCore
 
+/// Natural-language dispatch happens before ArgumentParser (SPEC §6, §10): a known command or option wins, anything
+/// else is a request. A default subcommand can't do this, as its name would become one more word a request can't
+/// start with.
 @main
+enum Main {
+    static func main() async {
+        let arguments = Array(CommandLine.arguments.dropFirst())
+        if RequestCommand.handles(arguments) {
+            await RequestCommand.main(arguments)
+        } else {
+            PlsCommand.main(arguments)
+        }
+    }
+}
+
 struct PlsCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "pls",
         abstract: "Run your own automations: shell scripts, AppleScript and Shortcuts.",
+        usage: """
+        pls <subcommand>
+        pls "<request>" [--yes] [--dry-run]
+        """,
+        discussion: """
+        Anything that isn't a subcommand is a request in plain words: `pls "free up port 3000"`. Apple's on-device \
+        model picks the automation and its values, and pls shows the plan before running it.
+        """,
         version: Pls.version,
         subcommands: [
             ListCommand.self,
@@ -23,6 +45,7 @@ struct PlsCommand: ParsableCommand {
 enum Exit {
     static let usage = ExitCode(64)
     static let notFound = ExitCode(65)
+    static let modelUnavailable = ExitCode(69)
     static let cannotRun = ExitCode(126)
     static let cancelled = ExitCode(130)
 }
