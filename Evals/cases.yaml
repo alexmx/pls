@@ -1,0 +1,120 @@
+# Requests for `xc evals`, resolved against Evals/library. Ported from poc/evals.json.
+#
+# expect: the automation id the request should pick, or none.
+# values: every value the request states or clearly implies. Matching ignores case, surrounding quotes and spaces,
+#   and a trailing / or %; numbers compare as numbers. A list gives the acceptable answers; "*" accepts any value.
+# allow:  params the model may fill without it counting as invented, when the request leaves them open.
+# A case fails if the pick is wrong, an expected value is missing or wrong, or the model fills any other param
+# (an invented value: SPEC §7 says fill only what the request states).
+
+- request: compress the pngs on my desktop to 60% quality
+  expect: compress-images
+  values: { folder: ~/Desktop, quality: 60, format: png }
+
+- request: my screenshots folder is huge, squash those images
+  expect: compress-images
+
+- request: compress jpgs in ~/Pictures/trip at 40
+  expect: compress-images
+  values: { folder: ~/Pictures/trip, quality: 40, format: jpg }
+
+- request: make the photos in ~/Pictures/trip half as big
+  expect: resize-images
+  values: { folder: ~/Pictures/trip, percent: 50 }
+
+- request: scale images on desktop to a quarter of their size
+  expect: resize-images
+  values: { folder: ~/Desktop, percent: 25 }
+
+- request: delete downloads older than a week
+  expect: clean-downloads
+  values: { older_than_days: 7 }
+
+- request: my downloads folder is a mess
+  expect: clean-downloads
+
+- request: empty the trash
+  expect: empty-trash
+
+- request: it's too bright, switch to dark
+  expect: dark-mode
+  values: { mode: dark }
+
+- request: light mode please
+  expect: dark-mode
+  values: { mode: light }
+
+- request: mute
+  expect: set-volume
+  values: { level: 0 }
+
+- request: turn the volume down to 20 percent
+  expect: set-volume
+  values: { level: 20 }
+
+- request: open quick in cursor
+  expect: open-project
+  values: { project: quick, editor: cursor }
+
+- request: I want to work on my-website
+  expect: open-project
+  values: { project: my-website }
+
+- request: pull latest for all repos
+  expect: git-pull-all
+
+- request: update homebrew stuff
+  expect: brew-upgrade
+
+- request: port 5173 is already in use
+  expect: kill-port
+  values: { port: 5173 }
+
+- request: kill whatever is running on 3000
+  expect: kill-port
+  values: { port: 3000 }
+
+- request: "note: call the dentist on monday"
+  expect: new-note
+  values: { title: "*" }
+  allow: [body]
+
+- request: dnd for 45 min
+  expect: focus-mode
+  values: { mode: do-not-disturb, minutes: 45 }
+
+- request: switch to work focus
+  expect: focus-mode
+  values: { mode: work }
+
+- request: start a 50 minute pomodoro for the tax return
+  expect: pomodoro
+  values: { minutes: 50, task: [tax return, the tax return] }
+
+- request: make a gif out of ~/Movies/demo.mov
+  expect: convert-video
+  values: { file: ~/Movies/demo.mov, format: gif }
+
+- request: sites aren't loading, maybe dns
+  expect: flush-dns
+
+- request: turn wifi off
+  expect: wifi
+  values: { state: "off" }
+
+- request: quit everything except Slack and Safari
+  expect: quit-apps
+  values: { except: ["Slack, Safari", "Slack,Safari", Slack and Safari] }
+
+- request: commit my dotfiles with message 'zsh aliases'
+  expect: backup-dotfiles
+  values: { message: zsh aliases }
+
+- request: what's the weather in Paris
+  expect: none
+
+- request: send an email to my boss
+  expect: none
+
+- request: restart my mac
+  expect: none
