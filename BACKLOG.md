@@ -1,1 +1,3 @@
 - Plan display: values with a newline or tab break the plan table (e.g. `pls run note $'a\nb'`); show them escaped or quoted.
+- Model values that equal the param's default: the model often echoes defaults (eval baseline: older_than_days=30, editor=xcode, folder=~/Projects, minutes=0). Treat them as `default` rather than `from request`, so the plan labels them right and `pls again` recomputes them instead of replaying them as chosen.
+- Eval baseline misses: "make the photos in ~/Pictures/trip half as big" routes to compress-images (PoC routed it to resize-images); "my screenshots folder is huge" invents folder and quality.

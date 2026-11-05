@@ -344,7 +344,11 @@ Sources/
   pls/                    # CLI: dispatch, prompts, plan display, completion
   CEditLine/              # C wrapper for libedit (ships with macOS): prompts with a prefilled, editable line
 Tests/PlsCoreTests/       # parsers, binder, dispatch, runners (with fixture scripts)
-Evals/                    # NL eval set + runner, ported from poc/ (not run in `swift test`)
+Evals/                    # `xc evals`: NL eval set, ported from poc/ (needs the model, not run in `swift test`)
+  library/                # 18 stub automations the requests resolve against
+  cases.yaml              # requests with the expected pick and values
+  Sources/, Tests/        # runner and its scorer tests (those do run in `swift test`)
+  results/baseline.txt    # last accepted run, to compare a change against
 ```
 
 Natural-language dispatch (§6) happens before ArgumentParser, which handles the subcommands themselves.
