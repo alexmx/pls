@@ -153,11 +153,12 @@ public enum ParamBinder {
     }
 
     /// A binding from the values the model read out of a request (SPEC §7). A value that's empty or doesn't fit its
-    /// param is left out, so the param falls back to its default or gets asked for; the plan shows which.
+    /// param is left out, so the param falls back to its default or gets asked for; the plan shows which. A value equal
+    /// to the default stays the default: the model often fills one in, and the request didn't choose it.
     public static func bind(_ automation: Automation, request: String, values: [String: String]) -> Binding {
         var binding = Binding(defaultsOf: automation, request: request)
         for param in automation.params {
-            guard let value = values[param.name], !value.isEmpty else { continue }
+            guard let value = values[param.name], !value.isEmpty, value != param.defaultValue else { continue }
             try? binding.supply(value, for: param, source: .request)
         }
         return binding

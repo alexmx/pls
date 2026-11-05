@@ -91,9 +91,15 @@ enum PlsEvals {
         routing   \(routed.count)/\(cases.count) picked right
         values    \(withValues.filter { $0.1.wrongValues.isEmpty }.count)/\(withValues.count) right \
         (cases picked right that expect values)
-        invented  \(routed.filter { !$0.1.invented.isEmpty }.count) cases filled a value the request didn't give
+        invented  \(count(routed.filter { !$0.1.invented.isEmpty }.count, "case")) filled a value the request \
+        didn't give
         latency   median \(String(format: "%.2f", percentile(0.5)))s · p90 \(String(format: "%.2f", percentile(0.9)))s \
         · max \(String(format: "%.2f", sorted.last ?? 0))s
         """
+    }
+
+    /// `1 case`, `2 cases`.
+    private static func count(_ number: Int, _ noun: String) -> String {
+        "\(number) \(noun)\(number == 1 ? "" : "s")"
     }
 }

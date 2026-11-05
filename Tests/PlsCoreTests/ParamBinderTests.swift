@@ -127,6 +127,16 @@ struct ParamBinderTests {
         }
     }
 
+    /// The model often fills a param with its default; that's still the default, not a value the request chose.
+    @Test func requestValuesEqualToTheDefaultStayDefaults() throws {
+        let automation = try makeAutomation("a", params: "editor: enum(xcode|cursor) = xcode", "project: string")
+        let binding = ParamBinder.bind(automation, request: "r", values: ["editor": "xcode", "project": "site"])
+        #expect(binding.values == [
+            "editor": BoundValue("xcode", .defaultValue),
+            "project": BoundValue("site", .request)
+        ])
+    }
+
     @Test func requestValuesThatDontFitAreLeftOut() throws {
         let automation = try makeAutomation(
             "a", params: "quality: int(1...100) = 80", "mode: enum(dark|light)", "note: string?", "port: int"

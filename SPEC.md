@@ -268,7 +268,8 @@ Two stages, both with greedy (deterministic) sampling and a fresh session each:
    Instructions: fill only values the request states or clearly implies; never invent.
 
 Only automations with a description are offered to the router. Then the values are merged and validated (§4.3):
-a model value that doesn't fit its param is dropped, so the param falls back to its default or is prompted for.
+a model value that doesn't fit its param is dropped, so the param falls back to its default or is prompted for; one
+equal to the default stays a default (the model often fills defaults in), so it isn't shown or replayed as chosen.
 Missing required values are prompted for, and the plan is shown.
 
 - **Fuzzy match:** ranks automations by the words a request shares with their id, name, description and examples
