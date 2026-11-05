@@ -5,15 +5,28 @@ import PlsCore
 /// Natural-language dispatch happens before ArgumentParser (SPEC §6, §10): a known command or option wins, anything
 /// else is a request. A default subcommand can't do this, as its name would become one more word a request can't
 /// start with.
+///
+/// Commands run from here, on the main actor, rather than through ArgumentParser's async `main`, which would run them
+/// on a background thread: prompting from one, Ctrl-C and SIGTERM didn't end pls.
 @main
+@MainActor
 enum Main {
     static func main() async {
         let arguments = Array(CommandLine.arguments.dropFirst())
         let commands = PlsCommand.configuration.subcommands.compactMap { $0.configuration.commandName }
         if Dispatch.isRequest(arguments, commands: commands) {
             await RequestCommand.main(arguments)
-        } else {
-            PlsCommand.main(arguments)
+            return
+        }
+        do {
+            var command = try PlsCommand.parseAsRoot(arguments)
+            if var asyncCommand = command as? AsyncParsableCommand {
+                try await asyncCommand.run()
+            } else {
+                try command.run()
+            }
+        } catch {
+            PlsCommand.exit(withError: error)
         }
     }
 }
