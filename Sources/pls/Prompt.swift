@@ -60,6 +60,18 @@ enum Prompt {
         }
     }
 
+    /// Shows `status` on stderr while `body` runs and erases it afterwards, if stderr is a terminal.
+    @MainActor
+    static func showingStatus<T, E: Error>(
+        _ status: String, _ body: () async throws(E) -> T
+    ) async throws(E) -> T {
+        guard isatty(STDERR_FILENO) != 0 else { return try await body() }
+        FileHandle.standardError.write(Data(status.utf8))
+        // Carriage return, then erase to the end of the line.
+        defer { FileHandle.standardError.write(Data("\r\u{1B}[K".utf8)) }
+        return try await body()
+    }
+
     /// `port — TCP port number [int(1...65535)]: `
     private static func label(_ param: Param) -> String {
         param.name + (param.description.map { " — \($0)" } ?? "") + " [\(param.type)]: "

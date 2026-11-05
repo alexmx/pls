@@ -29,7 +29,9 @@ struct RequestCommand: AsyncParsableCommand {
         }
         let binding: Binding?
         do {
-            binding = try await NLResolver().resolve(request, in: Library.loadDefault())
+            binding = try await Prompt.showingStatus("Thinking…") { () async throws(NLResolver.ModelError) in
+                try await NLResolver().resolve(request, in: Library.loadDefault())
+            }
         } catch {
             printError("pls: \(error)")
             switch error {
