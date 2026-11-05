@@ -48,6 +48,13 @@ struct NLResolverTests {
         #expect(NLResolver.values(in: content) == ["port": "3000", "ratio": "0.5", "mode": "dark", "force": "true"])
     }
 
+    @Test func plsModelOffTurnsTheModelOff() {
+        #expect(NLResolver.unavailableReason(.available, environment: ["PLS_MODEL": "off"])?
+            .contains("PLS_MODEL=off") == true)
+        #expect(NLResolver.unavailableReason(.available, environment: ["PLS_MODEL": "on"]) == nil)
+        #expect(NLResolver.unavailableReason(.available, environment: [:]) == nil)
+    }
+
     @Test func unavailableModelHasAReason() {
         #expect(NLResolver.unavailableReason(.available) == nil)
         #expect(NLResolver.unavailableReason(.unavailable(.appleIntelligenceNotEnabled))?

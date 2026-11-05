@@ -8,8 +8,9 @@ public struct Param: Sendable, Equatable {
         case defaultValue(String)
     }
 
-    /// CLI flags (`--yes`, `--dry-run`, `--help`) and names whose `PLS_<NAME>` variable pls sets itself.
-    public static let reservedNames: Set<String> = ["yes", "dry_run", "help", "id", "home", "automation_dir"]
+    /// CLI flags (`--yes`, `--dry-run`, `--help`) and names whose `PLS_<NAME>` variable pls sets itself or reads as a
+    /// setting (`PLS_HOME`, `PLS_MODEL`).
+    public static let reservedNames: Set<String> = ["yes", "dry_run", "help", "id", "home", "model", "automation_dir"]
 
     public let name: String
     public let type: ParamType

@@ -19,14 +19,20 @@ public struct NLResolver: Sendable {
     }
 
     private let model: SystemLanguageModel
+    private let environment: [String: String]
 
-    public init(model: SystemLanguageModel = .default) {
+    /// `PLS_MODEL=off` in `environment` turns the model off, so requests use word matching instead.
+    public init(
+        model: SystemLanguageModel = .default,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) {
         self.model = model
+        self.environment = environment
     }
 
     /// The binding for `request`, or nil if no automation in `library` does what it asks.
     public func resolve(_ request: String, in library: Library) async throws(ModelError) -> Binding? {
-        if let reason = Self.unavailableReason(model.availability) {
+        if let reason = Self.unavailableReason(model.availability, environment: environment) {
             throw .unavailable(reason)
         }
         let candidates = Self.candidates(in: library)
@@ -46,8 +52,13 @@ public struct NLResolver: Sendable {
     }
 
     /// Why the model can't be used, or nil if it can.
-    public static func unavailableReason(_ availability: SystemLanguageModel.Availability) -> String? {
-        switch availability {
+    public static func unavailableReason(
+        _ availability: SystemLanguageModel.Availability, environment: [String: String] = [:]
+    ) -> String? {
+        if environment["PLS_MODEL"] == "off" {
+            return "Apple's on-device model is turned off (PLS_MODEL=off)"
+        }
+        return switch availability {
         case .available: nil
         case .unavailable(.deviceNotEligible): "this Mac can't run Apple's on-device model"
         case .unavailable(.appleIntelligenceNotEnabled):

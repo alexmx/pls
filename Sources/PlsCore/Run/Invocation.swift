@@ -52,11 +52,15 @@ public struct Invocation: Sendable, Equatable {
         self.variables = variables
     }
 
-    /// The environment the program gets: the inherited one minus every `PLS_` variable except `PLS_HOME`, plus
+    /// pls's own settings, which a `pls` run inside a script should see too.
+    static let settingVariables: Set<String> = ["PLS_HOME", "PLS_MODEL"]
+
+    /// The environment the program gets: the inherited one minus every `PLS_` variable except the settings, plus
     /// `variables`. So a param left empty is really unset, and a `pls run` inside a script gets nothing from the
-    /// automation that called it except which library to use.
+    /// automation that called it except how pls is set up (which library, whether to use the model).
     public func environment(inheriting base: [String: String]) -> [String: String] {
-        base.filter { !$0.key.hasPrefix("PLS_") || $0.key == "PLS_HOME" }.merging(variables) { _, new in new }
+        base.filter { !$0.key.hasPrefix("PLS_") || Self.settingVariables.contains($0.key) }
+            .merging(variables) { _, new in new }
     }
 
     /// The command as you'd type it in a shell, for display.

@@ -33,12 +33,11 @@ struct RequestCommand: AsyncParsableCommand {
             binding = try await Prompt.showingStatus("Thinking…") { () async throws(NLResolver.ModelError) in
                 try await NLResolver().resolve(request, in: library)
             }
-        } catch {
-            printError("pls: \(error)")
-            switch error {
-            case .unavailable: throw Exit.modelUnavailable
-            case .failed: throw ExitCode.failure
-            }
+        } catch let .unavailable(reason) {
+            binding = try pickByWords(request, in: library, because: reason)
+        } catch let .failed(reason) {
+            printError("pls: \(reason)")
+            throw ExitCode.failure
         }
         guard let binding else {
             printError("pls: no automation matches \"\(request)\"")
@@ -50,5 +49,26 @@ struct RequestCommand: AsyncParsableCommand {
             throw Exit.notFound
         }
         try perform(binding, via: .request, yes: yes, dryRun: dryRun)
+    }
+
+    /// Without the model (SPEC §7): offers the closest automations by shared words and returns the one picked, with
+    /// its defaults; `perform` then asks for what's missing and shows the plan. Exit 69 if none is picked.
+    private func pickByWords(_ request: String, in library: Library, because reason: String) throws -> Binding {
+        printError("pls: \(reason); matching by words instead")
+        let closest = FuzzyMatcher.closest(to: request, in: library.automations)
+        guard !closest.isEmpty else {
+            printError("pls: no automation shares a word with \"\(request)\"")
+            throw Exit.modelUnavailable
+        }
+        let rows = closest.enumerated().map { ["\($0.offset + 1)", $0.element.id, $0.element.description ?? ""] }
+        table(rows, indent: "  ").forEach(printError)
+        guard !dryRun, Prompt.isInteractive else {
+            printError(dryRun
+                ? "pls would ask which one to run."
+                : "pls: no terminal to choose in; run one with `pls run <id>`")
+            throw Exit.modelUnavailable
+        }
+        guard let index = try Prompt.choose(among: closest.count) else { throw Exit.modelUnavailable }
+        return ParamBinder.bind(closest[index], request: request, values: [:])
     }
 }

@@ -86,10 +86,12 @@ struct RunTests {
         let run = try invocation(home, "a")
         let inherited = [
             "PATH": "/bin", "PLS_NAME": "stale", "PLS_ID": "old", "PLS_PORT": "from a calling automation",
-            "PLS_AUTOMATION_DIR": "/elsewhere", "PLS_HOME": "/my/library"
+            "PLS_AUTOMATION_DIR": "/elsewhere", "PLS_HOME": "/my/library", "PLS_MODEL": "off"
         ]
-        // Only PLS_HOME survives, so `pls run` inside a script uses the same library and nothing else leaks in.
-        #expect(run.environment(inheriting: inherited) == ["PATH": "/bin", "PLS_ID": "a", "PLS_HOME": "/my/library"])
+        // Only pls's settings survive, so `pls run` inside a script works the same way and nothing else leaks in.
+        #expect(run.environment(inheriting: inherited) == [
+            "PATH": "/bin", "PLS_ID": "a", "PLS_HOME": "/my/library", "PLS_MODEL": "off"
+        ])
     }
 
     @Test(arguments: [

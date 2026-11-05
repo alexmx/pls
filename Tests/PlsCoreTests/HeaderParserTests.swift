@@ -146,7 +146,9 @@ struct HeaderParserTests {
         "port: int = abc",
         "port: int(1...10) = 11",
         "flag: bool = yes",
-        "title: string? = hello"
+        "title: string? = hello",
+        "home: path",
+        "model: string"
     ])
     func invalidParams(line: String) {
         #expect(throws: ParamError.self) { try HeaderParser.parseParam(line) }

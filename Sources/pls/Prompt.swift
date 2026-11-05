@@ -35,6 +35,20 @@ enum Prompt {
         }
     }
 
+    /// Asks "Which one? [1-n]" until the answer is one of them. nil if the answer is empty; Ctrl-D cancels.
+    static func choose(among count: Int) throws -> Int? {
+        while true {
+            guard let answer = ask("Which one? [\(count == 1 ? "1" : "1-\(count)")] ") else { throw Exit.cancelled }
+            let trimmed = answer.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                return nil
+            }
+            if let number = Int(trimmed), (1...count).contains(number) {
+                return number - 1
+            }
+        }
+    }
+
     /// Asks for every value, prefilled with the current one; an empty answer resets or clears it (`Binding.edit`).
     /// Enter on the unchanged prefill keeps the value exactly, surrounding spaces included. A value that can't be
     /// shown on one line (a newline, a tab) isn't prefilled; Enter keeps it.
