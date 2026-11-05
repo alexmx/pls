@@ -9,6 +9,8 @@ public struct BoundValue: Sendable, Equatable {
         case prompted = "entered"
         /// Chosen in the run `pls again` repeats.
         case repeated = "last run"
+        /// Read from a natural-language request by the model.
+        case request = "from request"
     }
 
     public let value: String
@@ -37,6 +39,19 @@ public struct Binding: Sendable, Equatable {
             throw BindingError("\(param.name): \(problem)")
         }
         values[param.name] = BoundValue(value, source)
+    }
+}
+
+extension Binding {
+    /// Every param that has a default, set to it. Defaults are checked when a param is made, so they always fit.
+    init(defaultsOf automation: Automation) {
+        var values: [String: BoundValue] = [:]
+        for param in automation.params {
+            if let value = param.defaultValue {
+                values[param.name] = BoundValue(value, .defaultValue)
+            }
+        }
+        self.init(automation: automation, values: values)
     }
 }
 
@@ -101,13 +116,22 @@ public enum ParamBinder {
             named[param.name] = value
         }
 
-        var binding = Binding(automation: automation, values: [:])
+        var binding = Binding(defaultsOf: automation)
         for param in automation.params {
             if let value = named[param.name] {
                 try binding.supply(value, for: param, source: .given)
-            } else if let value = param.defaultValue {
-                try binding.supply(value, for: param, source: .defaultValue)
             }
+        }
+        return binding
+    }
+
+    /// A binding from the values the model read out of a request (SPEC §7). A value that's empty or doesn't fit its
+    /// param is left out, so the param falls back to its default or gets asked for; the plan shows which.
+    public static func bind(_ automation: Automation, fromRequest values: [String: String]) -> Binding {
+        var binding = Binding(defaultsOf: automation)
+        for param in automation.params {
+            guard let value = values[param.name], !value.isEmpty else { continue }
+            try? binding.supply(value, for: param, source: .request)
         }
         return binding
     }
@@ -116,7 +140,7 @@ public enum ParamBinder {
     /// defaults come from the current automation, params it no longer has are dropped, and required params it has
     /// gained are left missing for the caller to ask for.
     public static func replay(_ chosen: [String: String], for automation: Automation) throws(BindingError) -> Binding {
-        var binding = try bind(automation, arguments: [])
+        var binding = Binding(defaultsOf: automation)
         for param in automation.params {
             guard let value = chosen[param.name] else { continue }
             try binding.supply(value, for: param, source: .repeated)
