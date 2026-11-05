@@ -119,6 +119,17 @@ struct HistoryTests {
         #expect(store.recent(1).first?.request == "free up port 3000")
     }
 
+    @Test func requestRunsRecordWhetherThePlanWasEdited() throws {
+        let automation = try makeAutomation("a", params: "port: int")
+        var binding = ParamBinder.bind(automation, request: "r", values: ["port": "1"])
+        #expect(HistoryEntry(binding, via: .request, exit: 0, seconds: 0, at: Date()).edited == false)
+        try binding.edit("2", for: automation.params[0])
+        let entry = HistoryEntry(binding, via: .request, exit: 0, seconds: 0, at: Date())
+        #expect(entry.edited == true)
+        #expect(entry.chosenValues == ["port": "2"])
+        #expect(HistoryEntry(binding, via: .run, exit: 0, seconds: 0, at: Date()).edited == nil)
+    }
+
     @Test func wordsAreRecordedOnlyForRequests() throws {
         let automation = try makeAutomation("a")
         let binding = ParamBinder.bind(automation, request: "do a", values: [:])

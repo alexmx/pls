@@ -21,10 +21,12 @@ public struct HistoryEntry: Codable, Sendable, Equatable {
     public let seconds: Double
     /// The words of a natural-language request; absent for other runs.
     public let request: String?
+    /// Whether a request's plan was changed before running; absent for other runs.
+    public let edited: Bool?
 
     public init(
         at: Date, id: String, params: [String: String], chosen: [String], via: Trigger, exit: Int32, seconds: Double,
-        request: String? = nil
+        request: String? = nil, edited: Bool? = nil
     ) {
         self.at = at
         self.id = id
@@ -34,6 +36,7 @@ public struct HistoryEntry: Codable, Sendable, Equatable {
         self.exit = exit
         self.seconds = (seconds * 100).rounded() / 100
         self.request = request
+        self.edited = edited
     }
 }
 
@@ -53,7 +56,8 @@ extension HistoryEntry {
             via: trigger,
             exit: exit,
             seconds: seconds,
-            request: trigger == .request ? binding.request : nil
+            request: trigger == .request ? binding.request : nil,
+            edited: trigger == .request ? binding.isEdited : nil
         )
     }
 }

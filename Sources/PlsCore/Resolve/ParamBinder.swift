@@ -11,6 +11,8 @@ public struct BoundValue: Sendable, Equatable {
         case repeated = "last run"
         /// Read from a natural-language request by the model.
         case request = "from request"
+        /// Changed while reviewing the plan.
+        case edited
     }
 
     public let value: String
@@ -29,6 +31,9 @@ public struct Binding: Sendable, Equatable {
     public private(set) var values: [String: BoundValue]
     /// The natural-language request the `.request` values were read from, if any.
     public let request: String?
+    /// Whether a value was changed while reviewing the plan. Stored, not derived from the sources: clearing an
+    /// optional value or resetting one to its default leaves no `.edited` value behind.
+    public private(set) var isEdited = false
 
     /// Required params that still have no value, in declared order.
     public var missing: [Param] {
@@ -41,6 +46,22 @@ public struct Binding: Sendable, Equatable {
             throw BindingError("\(param.name): \(problem)")
         }
         values[param.name] = BoundValue(value, source)
+    }
+
+    /// Changes a value while reviewing the plan (SPEC §6). The same value changes nothing; an empty one resets a param
+    /// with a default and clears an optional one, but a required param can't be empty.
+    public mutating func edit(_ value: String, for param: Param) throws(BindingError) {
+        guard value != values[param.name]?.value ?? "" else { return }
+        if value.isEmpty {
+            switch param.requirement {
+            case .required: throw BindingError("\(param.name): required")
+            case .optional: values[param.name] = nil
+            case let .defaultValue(defaultValue): values[param.name] = BoundValue(defaultValue, .defaultValue)
+            }
+        } else {
+            try supply(value, for: param, source: .edited)
+        }
+        isEdited = true
     }
 }
 

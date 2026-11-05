@@ -140,4 +140,46 @@ struct ParamBinderTests {
         ])
         #expect(binding.missing.map(\.name) == ["port"])
     }
+
+    // MARK: editing in review
+
+    private func reviewed() throws -> Binding {
+        let automation = try makeAutomation(
+            "a", params: "port: int(1...65535)", "quality: int = 80", "note: string?"
+        )
+        return ParamBinder.bind(automation, request: "r", values: ["port": "3000", "quality": "60", "note": "hi"])
+    }
+
+    @Test func editingChangesTheValueAndMarksIt() throws {
+        var binding = try reviewed()
+        try binding.edit("3001", for: binding.automation.params[0])
+        #expect(binding.values["port"] == BoundValue("3001", .edited))
+        #expect(binding.isEdited)
+    }
+
+    @Test func keepingTheValueIsNoEdit() throws {
+        var binding = try reviewed()
+        for param in binding.automation.params {
+            try binding.edit(binding.values[param.name]?.value ?? "", for: param)
+        }
+        #expect(try binding == reviewed())
+        #expect(!binding.isEdited)
+    }
+
+    @Test func emptyResetsADefaultAndClearsAnOptional() throws {
+        var binding = try reviewed()
+        try binding.edit("", for: binding.automation.params[1])
+        try binding.edit("", for: binding.automation.params[2])
+        #expect(binding.values["quality"] == BoundValue("80", .defaultValue))
+        #expect(binding.values["note"] == nil)
+        #expect(binding.isEdited)
+    }
+
+    @Test func editsMustFit() throws {
+        var binding = try reviewed()
+        let port = binding.automation.params[0]
+        #expect(throws: BindingError("port: required")) { try binding.edit("", for: port) }
+        #expect(throws: BindingError("port: 0 is outside 1...65535")) { try binding.edit("0", for: port) }
+        #expect(try binding == reviewed())
+    }
 }
