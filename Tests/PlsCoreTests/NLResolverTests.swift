@@ -48,20 +48,6 @@ struct NLResolverTests {
         #expect(NLResolver.values(in: content) == ["port": "3000", "ratio": "0.5", "mode": "dark", "force": "true"])
     }
 
-    @Test func requestValuesThatDontFitAreLeftOut() throws {
-        let automation = try makeAutomation(
-            "a", params: "quality: int(1...100) = 80", "mode: enum(dark|light)", "note: string?", "port: int"
-        )
-        let binding = ParamBinder.bind(
-            automation, request: "r", values: ["quality": "150", "mode": "dark", "note": "", "gone": "x"]
-        )
-        #expect(binding.values == [
-            "quality": BoundValue("80", .defaultValue),
-            "mode": BoundValue("dark", .request)
-        ])
-        #expect(binding.missing.map(\.name) == ["port"])
-    }
-
     @Test func unavailableModelHasAReason() {
         #expect(NLResolver.unavailableReason(.available) == nil)
         #expect(NLResolver.unavailableReason(.unavailable(.appleIntelligenceNotEnabled))?
@@ -93,5 +79,13 @@ struct NLResolverModelTests {
 
     @Test func answersNoneWhenNothingFits() async throws {
         #expect(try await NLResolver().resolve("order me a pizza", in: library) == nil)
+    }
+
+    /// "none" is a valid id, so the no-match answer must be something an id can't be.
+    @Test func anAutomationCalledNoneIsntTheNoMatchAnswer() async throws {
+        let home = try TempHome()
+        try home.write("none.sh", "# @pls.description: Do nothing at all\n")
+        try home.write("kill-port.sh", "# @pls.description: Kill whatever listens on a TCP port\n")
+        #expect(try await NLResolver().resolve("order me a pizza", in: Library.load(home: home.url)) == nil)
     }
 }

@@ -17,26 +17,22 @@ struct RequestCommand: AsyncParsableCommand {
     @Argument(parsing: .allUnrecognized, help: "The request; quoting it is optional.")
     var words: [String] = []
 
-    /// Whether `arguments` are a request rather than a subcommand: they don't start with a subcommand's name or an
-    /// option other than the ones a request takes.
-    static func handles(_ arguments: [String]) -> Bool {
-        guard let first = arguments.first else { return false }
-        if first.hasPrefix("-") {
-            return ["-y", "--yes", "--dry-run"].contains(first)
-        }
-        let commands = PlsCommand.configuration.subcommands.map { $0.configuration.commandName } + ["help"]
-        return !commands.contains(first)
-    }
-
     func run() async throws {
         let request = words.joined(separator: " ")
-        guard !request.allSatisfy(\.isWhitespace) else { throw CleanExit.helpRequest(PlsCommand.self) }
+        // Only options, e.g. `pls --yes`: show the main help, not this command's.
+        guard !request.allSatisfy(\.isWhitespace) else {
+            printError(PlsCommand.helpMessage())
+            throw Exit.usage
+        }
         let binding: Binding?
         do {
             binding = try await NLResolver().resolve(request, in: Library.loadDefault())
         } catch {
             printError("pls: \(error)")
-            throw Exit.modelUnavailable
+            switch error {
+            case .unavailable: throw Exit.modelUnavailable
+            case .failed: throw ExitCode.failure
+            }
         }
         guard let binding else {
             printError("pls: no automation matches \"\(request)\"")

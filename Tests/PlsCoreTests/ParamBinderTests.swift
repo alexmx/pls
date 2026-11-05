@@ -126,4 +126,18 @@ struct ParamBinderTests {
             try ParamBinder.bind(verbose, arguments: ["--no-verbose=true"])
         }
     }
+
+    @Test func requestValuesThatDontFitAreLeftOut() throws {
+        let automation = try makeAutomation(
+            "a", params: "quality: int(1...100) = 80", "mode: enum(dark|light)", "note: string?", "port: int"
+        )
+        let binding = ParamBinder.bind(
+            automation, request: "r", values: ["quality": "150", "mode": "dark", "note": "", "gone": "x"]
+        )
+        #expect(binding.values == [
+            "quality": BoundValue("80", .defaultValue),
+            "mode": BoundValue("dark", .request)
+        ])
+        #expect(binding.missing.map(\.name) == ["port"])
+    }
 }

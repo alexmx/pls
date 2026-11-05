@@ -5,8 +5,17 @@ import FoundationModels
 /// automation, then fill that automation's params. Both use greedy sampling and a fresh session, so the same request
 /// against the same library gets the same answer.
 public struct NLResolver: Sendable {
-    public struct ModelError: Error, CustomStringConvertible {
-        public let description: String
+    public enum ModelError: Error, Equatable, CustomStringConvertible {
+        /// The model can't be used on this Mac right now.
+        case unavailable(String)
+        /// The model was asked but couldn't answer.
+        case failed(String)
+
+        public var description: String {
+            switch self {
+            case let .unavailable(reason), let .failed(reason): reason
+            }
+        }
     }
 
     private let model: SystemLanguageModel
@@ -18,7 +27,7 @@ public struct NLResolver: Sendable {
     /// The binding for `request`, or nil if no automation in `library` does what it asks.
     public func resolve(_ request: String, in library: Library) async throws(ModelError) -> Binding? {
         if let reason = Self.unavailableReason(model.availability) {
-            throw ModelError(description: reason)
+            throw .unavailable(reason)
         }
         let candidates = Self.candidates(in: library)
         guard !candidates.isEmpty else { return nil }
@@ -27,12 +36,12 @@ public struct NLResolver: Sendable {
             let values = automation.params.isEmpty ? [:] : try await fill(request, for: automation)
             return ParamBinder.bind(automation, request: request, values: values)
         } catch let LanguageModelSession.GenerationError.exceededContextWindowSize(context) {
-            throw ModelError(description: """
+            throw .failed("""
             the request and the \(candidates.count) automations offered don't fit in the model's context \
             (\(context.debugDescription))
             """)
         } catch {
-            throw ModelError(description: "the model couldn't answer: \(error.localizedDescription)")
+            throw .failed("the model couldn't answer: \(error.localizedDescription)")
         }
     }
 
@@ -66,7 +75,8 @@ public struct NLResolver: Sendable {
         }.joined(separator: "\n")
     }
 
-    private static let noMatch = "none"
+    /// Uppercase, so no id can be it: ids are lowercase kebab-case, and `none` is a valid one.
+    private static let noMatch = "NONE"
 
     private func route(_ request: String, among candidates: [Automation]) async throws -> Automation? {
         let ids = candidates.map(\.id) + [Self.noMatch]

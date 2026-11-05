@@ -246,7 +246,8 @@ quotes: `pls "run the backup"` is one argument, so it's a request; unquoted, `pl
 `e` edits each param in turn, with the current value prefilled.
 
 **Exit codes:** the script's own code when it ran (128 + signal if killed); `64` usage or validation error; `65`
-unknown id or no NL match; `69` model unavailable and no fallback chosen; `126` the script couldn't be started
+unknown id or no NL match; `69` model unavailable and no fallback chosen; `1` the model couldn't answer a request
+(a refusal, an unsupported language, a library too big for its context); `126` the script couldn't be started
 (e.g. its shebang interpreter doesn't exist); `130` cancelled at a prompt.
 
 ## 7. Natural language (pick & fill)
@@ -281,8 +282,8 @@ finishing at the same time don't interleave; lines that can't be read are skippe
  "via":"run"}
 ```
 
-- `params`: every value the run used, defaults included. `chosen`: the ones typed, entered at a prompt or repeated,
-  as opposed to defaulted.
+- `params`: every value the run used, defaults included. `chosen`: the ones typed, entered at a prompt, repeated
+  or read from the request, as opposed to defaulted.
 - `via`: `run`, `again` or `request`. A request also records `request` (the words); `pls again` replays its values
   without the words. Still to come with review editing: `edited` (whether the plan was changed before running). These
   are the data "learn from accepted picks" needs.

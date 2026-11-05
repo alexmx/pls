@@ -53,7 +53,7 @@ extension HistoryEntry {
             via: trigger,
             exit: exit,
             seconds: seconds,
-            request: binding.request
+            request: trigger == .request ? binding.request : nil
         )
     }
 }

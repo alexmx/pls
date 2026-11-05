@@ -9,7 +9,8 @@ import PlsCore
 enum Main {
     static func main() async {
         let arguments = Array(CommandLine.arguments.dropFirst())
-        if RequestCommand.handles(arguments) {
+        let commands = PlsCommand.configuration.subcommands.compactMap { $0.configuration.commandName }
+        if Dispatch.isRequest(arguments, commands: commands) {
             await RequestCommand.main(arguments)
         } else {
             PlsCommand.main(arguments)

@@ -119,6 +119,12 @@ struct HistoryTests {
         #expect(store.recent(1).first?.request == "free up port 3000")
     }
 
+    @Test func wordsAreRecordedOnlyForRequests() throws {
+        let automation = try makeAutomation("a")
+        let binding = ParamBinder.bind(automation, request: "do a", values: [:])
+        #expect(HistoryEntry(binding, via: .run, exit: 0, seconds: 0, at: Date()).request == nil)
+    }
+
     @Test func runsWithoutARequestLeaveTheKeyOut() throws {
         let home = try TempHome()
         let store = HistoryStore(file: home.url.appending(path: "history.jsonl"))
