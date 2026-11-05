@@ -1,4 +1,4 @@
-/// A param's final value and where it came from (shown by `--dry-run` and, later, the review step).
+/// A param's final value and where it came from (shown in the plan by the review step and `--dry-run`).
 public struct BoundValue: Sendable, Equatable {
     /// The raw value is the label the plan display shows.
     public enum Source: String, Sendable, Equatable {
@@ -48,10 +48,11 @@ public struct Binding: Sendable, Equatable {
         values[param.name] = BoundValue(value, source)
     }
 
-    /// Changes a value while reviewing the plan (SPEC §6). The same value changes nothing; an empty one resets a param
-    /// with a default and clears an optional one, but a required param can't be empty.
+    /// Changes a value while reviewing the plan (SPEC §6). An empty value resets a param with a default and clears an
+    /// optional one, but a required param can't be empty. Only an actual change counts as an edit.
     public mutating func edit(_ value: String, for param: Param) throws(BindingError) {
-        guard value != values[param.name]?.value ?? "" else { return }
+        let before = values[param.name]
+        guard value != before?.value ?? "" else { return }
         if value.isEmpty {
             switch param.requirement {
             case .required: throw BindingError("\(param.name): required")
@@ -61,7 +62,9 @@ public struct Binding: Sendable, Equatable {
         } else {
             try supply(value, for: param, source: .edited)
         }
-        isEdited = true
+        if values[param.name] != before {
+            isEdited = true
+        }
     }
 }
 

@@ -1,0 +1,1 @@
+- Plan display: values with a newline or tab break the plan table (e.g. `pls run note $'a\nb'`); show them escaped or quoted.

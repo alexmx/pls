@@ -166,6 +166,15 @@ struct ParamBinderTests {
         #expect(!binding.isEdited)
     }
 
+    @Test func resettingAValueThatIsAlreadyTheDefaultIsNoEdit() throws {
+        let automation = try makeAutomation("a", params: "quality: int = 80", "note: string?")
+        var binding = ParamBinder.bind(automation, request: "r", values: [:])
+        try binding.edit("", for: automation.params[0])
+        try binding.edit("", for: automation.params[1])
+        #expect(binding == ParamBinder.bind(automation, request: "r", values: [:]))
+        #expect(!binding.isEdited)
+    }
+
     @Test func emptyResetsADefaultAndClearsAnOptional() throws {
         var binding = try reviewed()
         try binding.edit("", for: binding.automation.params[1])

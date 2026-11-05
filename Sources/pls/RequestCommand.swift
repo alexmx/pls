@@ -18,7 +18,7 @@ struct RequestCommand: AsyncParsableCommand {
     var words: [String] = []
 
     /// On the main actor, so after asking the model it resumes on the main thread, where every other command prompts
-    /// and runs the script. On another thread, Ctrl-C at a prompt didn't end pls.
+    /// and runs the script. Prompting from one of Swift's background threads, Ctrl-C and SIGTERM didn't end pls.
     @MainActor
     func run() async throws {
         let request = words.joined(separator: " ")

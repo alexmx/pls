@@ -11,18 +11,10 @@ enum Prompt {
     /// Asks for each missing required value until it's valid. Ctrl-D cancels.
     static func fillMissing(_ binding: inout Binding) throws {
         for param in binding.missing {
-            while true {
-                guard let answer = ask(label(param)) else { throw Exit.cancelled }
-                if answer.isEmpty {
-                    printError("  (required)")
-                    continue
-                }
-                do {
-                    try binding.supply(answer, for: param, source: .prompted)
-                    break
-                } catch {
-                    printError("  \(error)")
-                }
+            try askUntilValid(label(param)) { (answer: String) throws(BindingError) in
+                let value = answer.trimmingCharacters(in: .whitespaces)
+                guard !value.isEmpty else { throw BindingError("\(param.name): required") }
+                try binding.supply(value, for: param, source: .prompted)
             }
         }
     }
@@ -32,7 +24,7 @@ enum Prompt {
     static func review(_ binding: inout Binding) throws -> Bool {
         planLines(binding).forEach(printError)
         while true {
-            switch ask("  Run? [Y/n/e] ")?.lowercased() {
+            switch ask("  Run? [Y/n/e] ")?.trimmingCharacters(in: .whitespaces).lowercased() {
             case nil, "n", "no": return false
             case "", "y", "yes": return true
             case "e", "edit":
@@ -44,18 +36,32 @@ enum Prompt {
     }
 
     /// Asks for every value, prefilled with the current one; an empty answer resets or clears it (`Binding.edit`).
+    /// Enter on the unchanged prefill keeps the value exactly, surrounding spaces included. A value that can't be
+    /// shown on one line (a newline, a tab) isn't prefilled; Enter keeps it.
     private static func edit(_ binding: inout Binding) throws {
         for param in binding.automation.params {
-            while true {
-                guard let answer = ask(label(param), prefill: binding.values[param.name]?.value) else {
-                    throw Exit.cancelled
-                }
-                do {
-                    try binding.edit(answer, for: param)
-                    break
-                } catch {
-                    printError("  \(error)")
-                }
+            let current = binding.values[param.name]?.value
+            let fitsOnALine = current?.unicodeScalars.allSatisfy { $0.properties.generalCategory != .control } ?? true
+            let prefill = fitsOnALine ? current : nil
+            let question = fitsOnALine ? label(param) : label(param, note: "Enter keeps the current value")
+            try askUntilValid(question, prefill: prefill) { (answer: String) throws(BindingError) in
+                guard answer != prefill ?? "" else { return }
+                try binding.edit(answer.trimmingCharacters(in: .whitespaces), for: param)
+            }
+        }
+    }
+
+    /// Asks `question` until `apply` accepts the answer, showing why it didn't. Ctrl-D cancels.
+    private static func askUntilValid(
+        _ question: String, prefill: String? = nil, apply: (String) throws(BindingError) -> Void
+    ) throws {
+        while true {
+            guard let answer = ask(question, prefill: prefill) else { throw Exit.cancelled }
+            do {
+                try apply(answer)
+                return
+            } catch {
+                printError("  \(error)")
             }
         }
     }
@@ -72,15 +78,16 @@ enum Prompt {
         return try await body()
     }
 
-    /// `port — TCP port number [int(1...65535)]: `
-    private static func label(_ param: Param) -> String {
-        param.name + (param.description.map { " — \($0)" } ?? "") + " [\(param.type)]: "
+    /// `port — TCP port number [int(1...65535)]: `, with an optional `(note)` before the colon.
+    private static func label(_ param: Param, note: String? = nil) -> String {
+        param.name + (param.description.map { " — \($0)" } ?? "") + " [\(param.type)]"
+            + (note.map { " (\($0))" } ?? "") + ": "
     }
 
-    /// nil on end of input (Ctrl-D on an empty line).
+    /// The line as typed, untrimmed; nil on end of input (Ctrl-D on an empty line).
     private static func ask(_ question: String, prefill: String? = nil) -> String? {
         guard let line = pls_read_line(question, prefill) else { return nil }
         defer { free(line) }
-        return String(cString: line).trimmingCharacters(in: .whitespaces)
+        return String(cString: line)
     }
 }

@@ -287,8 +287,8 @@ finishing at the same time don't interleave; lines that can't be read are skippe
  "via":"run"}
 ```
 
-- `params`: every value the run used, defaults included. `chosen`: the ones typed, entered at a prompt, repeated
-  or read from the request, as opposed to defaulted.
+- `params`: every value the run used, defaults included. `chosen`: the ones typed, entered at a prompt, repeated,
+  read from the request or edited in review, as opposed to defaulted.
 - `via`: `run`, `again` or `request`. A request also records `request` (the words) and `edited` (whether the plan
   was changed before running), the data "learn from accepted picks" needs. `pls again` replays a request's values,
   edits included, without the words.
