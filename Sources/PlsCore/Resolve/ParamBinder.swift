@@ -90,6 +90,32 @@ public struct BindingError: Error, Equatable, CustomStringConvertible {
     }
 }
 
+/// The arguments after `pls run <id>`, sorted into named and positional values before any is checked.
+struct ParsedArguments {
+    struct Named {
+        /// As typed, without the dashes and any `=value`.
+        let name: String
+        /// nil when the automation has no param by that name.
+        let param: Param?
+        /// `--no-<name>` for a bool.
+        let negated: Bool
+        /// From `=value` or the next argument; nil for a bare bool flag, or when the arguments ran out first.
+        let value: String?
+    }
+
+    var named: [Named] = []
+    var positional: [String] = []
+    /// A lone `--` was seen, so everything after it is positional.
+    var onlyPositional = false
+
+    /// The param the next argument would be the value of: the last one given, still waiting for it.
+    var awaitingValue: Param? {
+        guard let last = named.last, let param = last.param, !last.negated, param.type != .bool, last.value == nil
+        else { return nil }
+        return param
+    }
+}
+
 /// Turns the arguments after `pls run <id>` into a `Binding` (SPEC §4.3, §6).
 ///
 /// - Positional values fill the params not given by name, in declared order.
@@ -98,43 +124,26 @@ public struct BindingError: Error, Equatable, CustomStringConvertible {
 /// - A lone `--` makes everything after it positional, e.g. for values that start with `--`.
 public enum ParamBinder {
     public static func bind(_ automation: Automation, arguments: [String]) throws(BindingError) -> Binding {
+        let parsed = parse(arguments, for: automation)
         var named: [String: String] = [:]
-        var positional: [String] = []
-        var remaining = arguments[...]
-
-        while let argument = remaining.popFirst() {
-            if argument == "--" {
-                positional += remaining
-                break
-            }
-            guard argument.hasPrefix("--"), argument.count > 2 else {
-                positional.append(argument)
-                continue
-            }
-            var name = String(argument.dropFirst(2))
-            var value: String?
-            if let equals = name.firstIndex(of: "=") {
-                value = String(name[name.index(after: equals)...])
-                name = String(name[..<equals])
-            }
-            let (param, negated) = try lookup(name, in: automation)
-            if negated {
-                guard value == nil else { throw BindingError("--\(name) doesn't take a value") }
+        for entry in parsed.named {
+            guard let param = entry.param else { throw unknownParam(entry.name, in: automation) }
+            let value: String
+            if entry.negated {
+                guard entry.value == nil else { throw BindingError("--\(entry.name) doesn't take a value") }
                 value = "false"
-            } else if value == nil {
-                if param.type == .bool {
-                    value = "true"
-                } else {
-                    guard let next = remaining.popFirst() else {
-                        throw BindingError("--\(name) needs a value")
-                    }
-                    value = next
-                }
+            } else if let given = entry.value {
+                value = given
+            } else if param.type == .bool {
+                value = "true"
+            } else {
+                throw BindingError("--\(entry.name) needs a value")
             }
             guard named[param.name] == nil else { throw BindingError("\(param.name) is given twice") }
             named[param.name] = value
         }
 
+        let positional = parsed.positional
         let unnamed = automation.params.filter { named[$0.name] == nil }
         guard positional.count <= unnamed.count else {
             throw BindingError(tooManyValues(automation, given: positional.count, unnamed: unnamed.count))
@@ -176,6 +185,33 @@ public enum ParamBinder {
         return binding
     }
 
+    /// Sorts the arguments by the rules above without checking anything: `bind` turns what's wrong into errors, and
+    /// completion reads which value the word being typed is.
+    static func parse(_ arguments: [String], for automation: Automation) -> ParsedArguments {
+        var parsed = ParsedArguments()
+        var remaining = arguments[...]
+        while let argument = remaining.popFirst() {
+            if argument == "--" {
+                parsed.onlyPositional = true
+                parsed.positional += remaining
+                break
+            }
+            guard argument.hasPrefix("--"), argument.count > 2 else {
+                parsed.positional.append(argument)
+                continue
+            }
+            let body = argument.dropFirst(2)
+            let name = String(body.prefix { $0 != "=" })
+            var value = name.count < body.count ? String(body.dropFirst(name.count + 1)) : nil
+            let found = param(named: name, in: automation)
+            if value == nil, let found, !found.negated, found.param.type != .bool {
+                value = remaining.popFirst()
+            }
+            parsed.named.append(.init(name: name, param: found?.param, negated: found?.negated ?? false, value: value))
+        }
+        return parsed
+    }
+
     /// The param for `--<name>` or, for bools, `--no-<name>` (then `negated`); `name` is without the dashes.
     static func param(named name: String, in automation: Automation) -> (param: Param, negated: Bool)? {
         let normalized = name.replacingOccurrences(of: "-", with: "_")
@@ -189,12 +225,9 @@ public enum ParamBinder {
         return nil
     }
 
-    private static func lookup(_ name: String, in automation: Automation) throws(BindingError) -> (Param, Bool) {
-        if let found = param(named: name, in: automation) {
-            return found
-        }
+    private static func unknownParam(_ name: String, in automation: Automation) -> BindingError {
         let known = automation.params.map { "--\($0.name)" }.joined(separator: ", ")
-        throw BindingError(
+        return BindingError(
             "\(automation.id) has no param --\(name)" + (known.isEmpty ? "; it takes none" : "; it takes \(known)")
         )
     }

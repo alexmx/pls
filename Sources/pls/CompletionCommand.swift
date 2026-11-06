@@ -3,6 +3,12 @@ import ArgumentParser
 struct CompletionCommand: ParsableCommand {
     enum Shell: String, CaseIterable, ExpressibleByArgument {
         case zsh
+
+        var completionShell: CompletionShell {
+            switch self {
+            case .zsh: .zsh
+            }
+        }
     }
 
     static let configuration = CommandConfiguration(
@@ -20,6 +26,6 @@ struct CompletionCommand: ParsableCommand {
     var shell: Shell
 
     func run() {
-        print(PlsCommand.completionScript(for: .zsh))
+        print(PlsCommand.completionScript(for: shell.completionShell))
     }
 }

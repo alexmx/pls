@@ -245,6 +245,9 @@ quotes: `pls "run the backup"` is one argument, so it's a request; unquoted, `pl
   Run? [Y/n/e]
 ```
 
+A value with a newline, tab or other control character is shown quoted and escaped, `"a\nb"`, here and in
+`history` and `again`; `--dry-run` shows it as `$'a\nb'`, so the command can still be pasted into zsh.
+
 `e` edits each param in turn, with the current value prefilled (line editing via libedit), then shows the plan
 again. A changed value is marked `edited`; an empty answer resets a param to its default or clears an optional one,
 and a required param can't be left empty. Ctrl-D on an empty line, or Ctrl-C, cancels (130). Every confirm question

@@ -12,7 +12,7 @@ public enum Completer {
     /// Suggestions for `words[current]`, where `words` is the whole command line: `pls run [flags] <id> [values…]`.
     /// Before the id that's the ids; after it, the param names not given yet when the word starts with `-`, otherwise
     /// the options of the param the word is a value for.
-    public static func run(_ words: [String], current: Int, library: Library) -> [String] {
+    public static func runArguments(_ words: [String], current: Int, library: Library) -> [String] {
         let typed = words.prefix(current).dropFirst(2)
         guard let idIndex = typed.firstIndex(where: { !$0.hasPrefix("-") }) else {
             return ids(in: library)
@@ -22,40 +22,18 @@ public enum Completer {
         return values(for: automation, typed: Array(typed[(idIndex + 1)...]), word: word)
     }
 
-    /// Follows ParamBinder's rules: which params are named, and which value the word being typed fills.
+    /// Which value the word being typed is, by ParamBinder's own reading of the arguments before it.
     private static func values(for automation: Automation, typed: [String], word: String) -> [String] {
-        var named: Set<String> = []
-        var positional = 0
-        var awaitingValue: Param?
-        var onlyPositional = false
-        for argument in typed {
-            if awaitingValue != nil {
-                awaitingValue = nil
-            } else if onlyPositional {
-                positional += 1
-            } else if argument == "--" {
-                onlyPositional = true
-            } else if runFlags.contains(argument) {
-                continue
-            } else if argument.hasPrefix("--"), argument.count > 2 {
-                let body = argument.dropFirst(2)
-                let name = body.prefix { $0 != "=" }
-                guard let (param, negated) = ParamBinder.param(named: String(name), in: automation) else { continue }
-                named.insert(param.name)
-                if !negated, param.type != .bool, name.count == body.count {
-                    awaitingValue = param
-                }
-            } else {
-                positional += 1
-            }
-        }
-
-        if let param = awaitingValue {
+        // ArgumentParser takes run's own flags out of the values before ParamBinder sees them.
+        let end = typed.firstIndex(of: "--") ?? typed.endIndex
+        let parsed = ParamBinder.parse(typed[..<end].filter { !runFlags.contains($0) } + typed[end...], for: automation)
+        if let param = parsed.awaitingValue {
             return options(of: param)
         }
         // Positional values fill the params not named, in declared order.
-        let open = automation.params.filter { !named.contains($0.name) }.dropFirst(positional)
-        if !onlyPositional, word.hasPrefix("-") {
+        let named = Set(parsed.named.compactMap(\.param?.name))
+        let open = automation.params.filter { !named.contains($0.name) }.dropFirst(parsed.positional.count)
+        if !parsed.onlyPositional, word.hasPrefix("-") {
             return open.flatMap(flags)
         }
         return open.first.map(options) ?? []

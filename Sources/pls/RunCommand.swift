@@ -25,7 +25,7 @@ struct RunCommand: ParsableCommand {
     var values: [String] = []
 
     private static let runCompletion = CompletionKind.custom { words, current, _ in
-        Completer.run(words, current: current, library: .loadDefault())
+        Completer.runArguments(words, current: current, library: .loadDefault())
     }
 
     func run() throws {

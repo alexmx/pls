@@ -22,7 +22,7 @@ struct CompleterTests {
     /// Completes the last word of `line`; a line ending in a space completes an empty word.
     private func complete(_ line: String) -> [String] {
         let words = line.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
-        return Completer.run(words, current: words.count - 1, library: library)
+        return Completer.runArguments(words, current: words.count - 1, library: library)
     }
 
     private let names = [
