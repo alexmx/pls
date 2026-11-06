@@ -36,7 +36,7 @@ enum Main {
 struct PlsCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "pls",
-        abstract: "Run your own automations: shell scripts, AppleScript and Shortcuts.",
+        abstract: "Run your own automations: shell scripts and AppleScript, which can also run Shortcuts.",
         usage: """
         pls <subcommand>
         pls "<request>" [--yes] [--dry-run]

@@ -1,7 +1,7 @@
 # pls — MVP spec
 
-A command-line runner for automations you write yourself (shell scripts, AppleScript, Apple Shortcuts),
-with natural-language "pick & fill" powered by Apple's on-device Foundation Model.
+A command-line runner for automations you write yourself (shell scripts and AppleScript, which can also run
+Shortcuts), with natural-language "pick & fill" powered by Apple's on-device Foundation Model.
 
 ```
 pls run kill-port 3000                    # run by id
@@ -12,7 +12,7 @@ pls "something is stuck on port 3000"     # pick & fill with the on-device model
 
 **In the MVP**
 - Load automations from `~/.config/pls`: single script files with a comment header, or folders with a `manifest.yaml`.
-- Opt-in Apple Shortcuts, registered in `~/.config/pls/shortcuts.yaml`.
+- Apple Shortcuts through a wrapper script (§3.3).
 - Run automations with typed, validated params; prompt for missing required values.
 - Natural language → pick an automation + fill its params (on-device model), always reviewed before running.
 - History, `pls again`, `pls doctor`, zsh completion.
@@ -36,7 +36,6 @@ What you write and what pls writes live apart, so the first can sit in a dotfile
     compress-images/      # folder automation
       manifest.yaml
       run.sh
-  shortcuts.yaml          # opt-in Shortcuts
 
 ~/.local/state/pls/       # $PLS_HOME, else $XDG_STATE_HOME/pls, else ~/.local/state/pls
   history.jsonl
@@ -53,7 +52,7 @@ Every automation has:
 | `id` | yes | Lowercase kebab-case, unique. From the file or folder name. |
 | `name` | no | Defaults to the id with title case, e.g. `kill-port` → "Kill port". |
 | `description` | for NL | One sentence. Without one, the automation isn't offered to the model (`doctor` warns). |
-| `kind` | inferred | `shell`, `applescript` or `shortcut`. |
+| `kind` | inferred | `shell` or `applescript`. |
 | `params` | no | Ordered list, see §4. |
 | `examples` | no | Phrases that should pick this automation. Help the model a lot. |
 | `confirm` | no | `true` = always ask before running, even when run by id. For destructive automations. |
@@ -132,21 +131,26 @@ Param keys: `name` and `type` (required), `default`, `optional`, `description`, 
 neither), `options` (enum). A param can't be both `optional` and have a `default`. `confirm` and `optional` accept only
 `true` / `false` (not YAML's `yes` / `on`). `.scpt` entries are allowed here (kind `applescript`).
 
-### 3.3 Shortcuts (opt-in)
+### 3.3 Shortcuts
 
-Only Shortcuts listed in `shortcuts.yaml` are part of the library. Manage the file by hand or with `pls shortcuts add/remove`.
+There's no separate Shortcuts format: a Shortcut is run from a small wrapper script, which declares its params like any
+other automation. A Shortcut takes one input, so the wrapper passes several params as JSON and the Shortcut starts with
+*Get Dictionary from Input* (one param can go as plain text). See `examples/home/automations/focus.sh`:
 
-```yaml
-- shortcut: Set Focus            # exact name in the Shortcuts app
-  id: focus                      # optional; default is the name in kebab-case
-  description: Turn a Focus mode on or off for a number of minutes
-  examples: [do not disturb for an hour]
-  params:
-    - { name: mode, type: enum, options: [do-not-disturb, work, sleep, off] }
-    - { name: minutes, type: int, default: 0 }
+```bash
+#!/bin/zsh
+# @pls.description: Turn a macOS Focus mode on or off, optionally for a number of minutes
+# @pls.param mode: enum(do-not-disturb|work|sleep|off) = do-not-disturb -- Which Focus
+# @pls.param minutes: int(0...1440) = 0 -- How long; 0 means until turned off
+input=$(mktemp -t pls-focus) || exit 1
+trap 'rm -f "$input"' EXIT
+printf '{"mode": "%s", "minutes": %s}\n' "$PLS_MODE" "$PLS_MINUTES" > "$input"
+shortcuts run "Set Focus" --input-path "$input"
 ```
 
-`description` defaults to the shortcut's name. `params` uses the same structure as manifests.
+**Why:** a registry of Shortcuts (`shortcuts.yaml` with `pls shortcuts list/add/remove`) would be a third way to
+declare an automation, mostly to save writing these few lines. It's in §12 Later, in case wrappers turn out to be a
+chore.
 
 ## 4. Params
 
@@ -198,7 +202,6 @@ Environment for all kinds:
 |---|---|
 | shell | With a shebang: run directly if executable, otherwise through the shebang's interpreter. Without one: `/bin/zsh <file>`, executable or not. Params are also passed as positional arguments in declared order (unset → empty string). |
 | applescript | `osascript <file> <params in declared order>`; read them with `on run argv`. |
-| shortcut | `shortcuts run "<name>" --input-path <tmp> --output-path <tmp>`. One param → its value as plain text. Several → a JSON object as text (use *Get Dictionary from Input* in the Shortcut). The output, if any, is printed to stdout. |
 
 ## 6. CLI
 
@@ -209,9 +212,6 @@ pls run <id> [values…] [--<param> <value>…] [-y|--yes] [--dry-run]
 pls "<request>" [--yes] [--dry-run]    # natural language
 pls again [-y|--yes] [--dry-run]       # re-run the last run with the values you chose
 pls history [-n|--limit 20]            # recent runs, newest first
-pls shortcuts list                     # all Shortcuts, marking the ones enabled
-pls shortcuts add "<name>"             # append an entry to shortcuts.yaml
-pls shortcuts remove <id>
 pls doctor
 pls completion zsh
 ```
@@ -321,7 +321,6 @@ is left out of the library; warnings don't. Exits 1 if there's any error, 0 othe
 Errors:
 - header or manifest parse errors, missing entry files
 - duplicate ids, invalid id characters
-- enabled Shortcuts that no longer exist
 
 Warnings:
 - the library folder doesn't exist (e.g. a mistyped `PLS_HOME`); unreadable is an error
@@ -347,11 +346,11 @@ Swift package, macOS 26+. Dependencies: `swift-argument-parser`, `Yams`.
 ```
 Sources/
   PlsCore/                # no terminal or UI code, so a future GUI can reuse it
-    Model/                # Automation, Param, ParamType, ParamValue
-    Library/              # HeaderParser, ManifestParser, ShortcutsRegistry, Library (merges sources)
-    Resolve/              # ParamBinder (defaults/CLI/model → validated values), NLResolver, FuzzyMatcher
-    Run/                  # Runner protocol; ShellRunner, AppleScriptRunner, ShortcutRunner
-    History/
+    Model/                # Automation, Param, ParamType, Diagnostic
+    Library/              # HeaderParser, ManifestParser, Library (loads the folder), Doctor
+    Resolve/              # ParamBinder (defaults/CLI/model → validated values), NLResolver, FuzzyMatcher, Dispatch
+    Run/                  # Invocation (program, arguments, PLS_ variables), Runner, Shebang, RecordedRun
+    History/              # HistoryEntry, HistoryStore (JSON lines), replaying the last run
   pls/                    # CLI: dispatch, prompts, plan display, completion
   CEditLine/              # C wrapper for libedit (ships with macOS): prompts with a prefilled, editable line
 Tests/PlsCoreTests/       # parsers, binder, dispatch, runners (with fixture scripts)
@@ -369,11 +368,13 @@ Natural-language dispatch (§6) happens before ArgumentParser, which handles the
 1. **Library:** both automation formats + `list`, `show`, `doctor`.
 2. **Runner:** shell + AppleScript runners, `run` with params, prompts, `--dry-run`; then history, `history` and `again`.
 3. **Natural language:** pick & fill, review/edit, fuzzy fallback, eval set.
-4. **Shortcuts:** `shortcuts.yaml`, runner, `shortcuts list/add/remove`.
-5. **Polish:** zsh completion, exit codes, error messages.
+4. **Polish:** zsh completion, exit codes, error messages.
+
+Shortcuts were milestone 4; they're run through wrapper scripts instead (§3.3).
 
 ## 12. Later
 
+A Shortcuts registry (`shortcuts.yaml`, `pls shortcuts list/add/remove`) if wrapper scripts turn out to be a chore,
 Raycast script format, learning from accepted picks (history → extra examples), project-local `.pls/`,
 JXA, candidate narrowing for large libraries, multi-step workflows, triggers, GUI launcher,
 and script generation with a bigger model (Private Cloud Compute or an external provider).

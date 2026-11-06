@@ -1,7 +1,7 @@
 # pls
 
-A command-line runner for automations you write yourself (shell, AppleScript, Shortcuts), with natural-language
-"pick & fill" using Apple's on-device Foundation Model. Swift 6 package, macOS 26+. The design is in
+A command-line runner for automations you write yourself (shell and AppleScript, which can wrap Shortcuts), with
+natural-language "pick & fill" using Apple's on-device Foundation Model. Swift 6 package, macOS 26+. The design is in
 [`SPEC.md`](SPEC.md).
 
 Workflow: main
@@ -19,7 +19,7 @@ Workflow: main
 - `Evals/`: eval library, cases and runner for the model (`xc evals`)
 - `Sources/CEditLine/`: tiny C wrapper for libedit, which the CLI's prompts read lines through
 - `Tests/PlsCoreTests/`: Swift Testing; every top-level suite has `@Suite(.timeLimit(.minutes(1)))` (lint-enforced)
-- `examples/home/`: sample library (one of each automation format); doubles as format documentation
+- `examples/home/`: sample library (each automation format, plus a Shortcut wrapper); doubles as format documentation
 - `poc/`: throwaway proof of concept for the model (own package, excluded from format/lint); results in `poc/results/`
 - `SPEC.md`: MVP spec and milestones
 

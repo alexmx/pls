@@ -103,7 +103,7 @@ struct NLResolverModelTests {
 
     @Test func countsTheRoutingListAgainstTheContext() async throws {
         let budget = try await NLResolver(environment: [:]).routingBudget(for: library)
-        #expect(budget.automations == 3)
+        #expect(budget.automations == 4)
         #expect(budget.tokens > 0)
         #expect(budget.tokens < budget.contextSize)
     }
