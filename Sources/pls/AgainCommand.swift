@@ -27,10 +27,9 @@ struct AgainCommand: ParsableCommand {
                 printError("pls: nothing to repeat yet; there are no runs in history")
                 throw Exit.notFound
             case let .automationGone(id, hasProblems):
-                printError("pls: the last run was \(id), which is no longer in your library")
-                if hasProblems {
-                    printError("pls: \(id) has problems that keep it from loading; run `pls doctor`")
-                }
+                printError(hasProblems
+                    ? "pls: the last run was \(id), which has problems that keep it from loading; run `pls doctor`"
+                    : "pls: the last run was \(id), which is no longer in your library")
                 throw Exit.notFound
             case let .valueNoLongerFits(id, problem):
                 printError("pls: can't repeat \(id): \(problem)")
