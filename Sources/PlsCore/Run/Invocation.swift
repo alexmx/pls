@@ -84,10 +84,13 @@ public struct Invocation: Sendable, Equatable {
         return path.hasPrefix("~") ? (path as NSString).expandingTildeInPath : path
     }
 
-    /// `word`, quoted for a shell only if it needs to be.
+    /// `word`, quoted for a shell only if it needs to be; control characters use `$'…'` to stay on one line.
     public static func shellQuoted(_ word: String) -> String {
         if !word.isEmpty, word.wholeMatch(of: /[A-Za-z0-9_\/.:=@%+,-]+/) != nil {
             return word
+        }
+        if Escaping.needsEscaping(word) {
+            return "$'" + Escaping.escaped(word, quote: "'") + "'"
         }
         return "'" + word.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }

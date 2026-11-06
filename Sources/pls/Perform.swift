@@ -34,7 +34,8 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, d
     // Say what's being repeated, unless the dry run or the confirm question is about to show the plan anyway.
     if trigger == .again, !dryRun, !asksFirst {
         let values = automation.params.compactMap { param in
-            binding.values[param.name].flatMap { $0.source == .repeated ? "\(param.name)=\($0.value)" : nil }
+            binding.values[param.name]
+                .flatMap { $0.source == .repeated ? "\(param.name)=\(displayValue($0.value))" : nil }
         }
         printError((["↻ \(automation.id)"] + values).joined(separator: "  "))
     }

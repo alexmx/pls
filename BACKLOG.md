@@ -1,4 +1,3 @@
-- Plan display: values with a newline or tab break the plan table (e.g. `pls run note $'a\nb'`); show them escaped or quoted.
 - Eval baseline misses: "make the photos in ~/Pictures/trip half as big" routes to compress-images (PoC routed it to resize-images); "my screenshots folder is huge" invents folder and quality.
 - Completion: `path` params complete nothing; zsh's own file completion can't be mixed into ArgumentParser's custom
   completion, so it needs a hand-written action or listing files ourselves.

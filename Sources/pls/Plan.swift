@@ -7,7 +7,9 @@ func planLines(_ binding: Binding) -> [String] {
         guard let bound = binding.values[param.name] else {
             return [param.name, param.requirement == .required ? "(missing)" : "(empty)", ""]
         }
-        return [param.name, bound.value.isEmpty ? "\"\"" : bound.value, bound.source.rawValue]
+        let value = bound.value
+        let shown = value.isEmpty || Escaping.needsEscaping(value) ? Escaping.quoted(value) : value
+        return [param.name, shown, bound.source.rawValue]
     }
     return ["→ \(automation.name)  (\(automation.id))"] + table(rows, indent: "    ")
 }

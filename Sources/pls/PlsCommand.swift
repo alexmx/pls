@@ -85,6 +85,12 @@ extension Library {
     }
 }
 
+/// A value among others on one line: quoted when it's empty or has spaces, newlines or tabs.
+func displayValue(_ value: String) -> String {
+    value.isEmpty || value.contains(where: \.isWhitespace) || Escaping.needsEscaping(value)
+        ? Escaping.quoted(value) : value
+}
+
 /// `/Users/me/.config/pls` → `~/.config/pls`.
 func displayPath(_ url: URL) -> String {
     let home = FileManager.default.homeDirectoryForCurrentUser.path

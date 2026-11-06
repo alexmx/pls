@@ -26,7 +26,7 @@ struct HistoryCommand: ParsableCommand {
             [
                 Self.time(entry.at),
                 entry.id + (entry.via == .again ? " (again)" : ""),
-                entry.chosenValues.sorted { $0.key < $1.key }.map { "\($0.key)=\(Self.display($0.value))" }
+                entry.chosenValues.sorted { $0.key < $1.key }.map { "\($0.key)=\(displayValue($0.value))" }
                     .joined(separator: " "),
                 entry.exit == 0 ? "ok" : "exit \(entry.exit)",
                 Self.duration(entry.seconds)
@@ -40,11 +40,6 @@ struct HistoryCommand: ParsableCommand {
         let time = date.formatted(date: .omitted, time: .shortened)
         guard !Calendar.current.isDateInToday(date) else { return time }
         return date.formatted(.dateTime.month(.abbreviated).day()) + " " + time
-    }
-
-    /// Quoted only when it has spaces, so values stay readable and still unambiguous.
-    private static func display(_ value: String) -> String {
-        value.isEmpty || value.contains(where: \.isWhitespace) ? "\"\(value)\"" : value
     }
 
     private static func duration(_ seconds: Double) -> String {
