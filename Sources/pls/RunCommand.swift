@@ -18,11 +18,15 @@ struct RunCommand: ParsableCommand {
     @Flag(help: "Show what would run, without running it.")
     var dryRun = false
 
-    @Argument(help: "The automation's id.")
+    @Argument(help: "The automation's id.", completion: runCompletion)
     var id: String
 
-    @Argument(parsing: .allUnrecognized, help: "Param values.")
+    @Argument(parsing: .allUnrecognized, help: "Param values.", completion: runCompletion)
     var values: [String] = []
+
+    private static let runCompletion = CompletionKind.custom { words, current, _ in
+        Completer.run(words, current: current, library: .loadDefault())
+    }
 
     func run() throws {
         let library = Library.loadDefault()

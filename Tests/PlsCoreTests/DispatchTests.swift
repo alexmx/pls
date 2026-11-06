@@ -27,7 +27,9 @@ struct DispatchTests {
         ["--help"],
         ["-h"],
         ["--version"],
-        ["--bogus", "x"]
+        ["--bogus", "x"],
+        // How the completion script asks for suggestions.
+        ["---completion", "run", "--", "positional@0", "2", "0", "pls", "run", ""]
     ])
     func isASubcommand(arguments: [String]) {
         #expect(!Dispatch.isRequest(arguments, commands: commands))

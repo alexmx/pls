@@ -4,7 +4,7 @@ import PlsCore
 struct ShowCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "show", abstract: "Show one automation in detail.")
 
-    @Argument(help: "The automation's id.")
+    @Argument(help: "The automation's id.", completion: .custom { _, _, _ in Completer.ids(in: .loadDefault()) })
     var id: String
 
     func run() throws {

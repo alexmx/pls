@@ -252,6 +252,11 @@ offers `e`: requests and `confirm: true` automations alike.
 
 While the model works, a terminal shows `Thinking…` on stderr; it's erased before the plan or an error appears.
 
+**Completion:** `pls completion zsh` prints a zsh script; `source <(pls completion zsh)` in `~/.zshrc`, after
+`compinit`, loads it. Tab completes commands and flags, automation ids (with their descriptions) after `run` and
+`show`, and for `pls run <id>` the param names not given yet (`--older-than-days`, `--no-<bool>`) and the choices of
+enum and bool params, positional or after `--<name>`. Other values don't complete.
+
 **Exit codes:** the script's own code when it ran (128 + signal if killed); `64` usage or validation error; `65`
 unknown id or no NL match; `69` model unavailable and no fallback chosen; `1` the model couldn't answer a request
 (a refusal, an unsupported language, a library too big for its context); `126` the script couldn't be started
@@ -348,7 +353,8 @@ Sources/
   PlsCore/                # no terminal or UI code, so a future GUI can reuse it
     Model/                # Automation, Param, ParamType, Diagnostic
     Library/              # HeaderParser, ManifestParser, Library (loads the folder), Doctor
-    Resolve/              # ParamBinder (defaults/CLI/model → validated values), NLResolver, FuzzyMatcher, Dispatch
+    Resolve/              # ParamBinder (defaults/CLI/model → validated values), NLResolver, FuzzyMatcher, Dispatch,
+                          # Completer (what Tab offers)
     Run/                  # Invocation (program, arguments, PLS_ variables), Runner, Shebang, RecordedRun
     History/              # HistoryEntry, HistoryStore (JSON lines), replaying the last run
   pls/                    # CLI: dispatch, prompts, plan display, completion

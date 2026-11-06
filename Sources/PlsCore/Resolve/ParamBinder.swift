@@ -176,8 +176,8 @@ public enum ParamBinder {
         return binding
     }
 
-    /// The param for `--<name>` or, for bools, `--no-<name>`.
-    private static func lookup(_ name: String, in automation: Automation) throws(BindingError) -> (Param, Bool) {
+    /// The param for `--<name>` or, for bools, `--no-<name>` (then `negated`); `name` is without the dashes.
+    static func param(named name: String, in automation: Automation) -> (param: Param, negated: Bool)? {
         let normalized = name.replacingOccurrences(of: "-", with: "_")
         if let param = automation.params.first(where: { $0.name == normalized }) {
             return (param, false)
@@ -185,6 +185,13 @@ public enum ParamBinder {
         if normalized.hasPrefix("no_"),
            let param = automation.params.first(where: { $0.name == normalized.dropFirst(3) && $0.type == .bool }) {
             return (param, true)
+        }
+        return nil
+    }
+
+    private static func lookup(_ name: String, in automation: Automation) throws(BindingError) -> (Param, Bool) {
+        if let found = param(named: name, in: automation) {
+            return found
         }
         let known = automation.params.map { "--\($0.name)" }.joined(separator: ", ")
         throw BindingError(
