@@ -2,9 +2,20 @@ import ArgumentParser
 import Foundation
 import PlsCore
 
+/// The options of every command that runs an automation: `pls run`, `pls again` and requests. `Dispatch.runOptions`
+/// lists their spellings for PlsCore.
+struct RunOptions: ParsableArguments {
+    @Flag(name: [.short, .long], help: "Don't ask before running.")
+    var yes = false
+
+    @Flag(help: "Show what would run, without running it.")
+    var dryRun = false
+}
+
 /// What `pls run`, `pls again` and requests share once they have a binding: ask for what's missing, confirm if
 /// the automation or the trigger wants it, then either preview (--dry-run) or run it (which records it in history).
-func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, dryRun: Bool) throws {
+func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: RunOptions) throws {
+    let (yes, dryRun) = (options.yes, options.dryRun)
     var binding = binding
     let automation = binding.automation
     // A request is the model's guess, so it's always shown before it runs.

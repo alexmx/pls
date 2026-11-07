@@ -7,9 +7,6 @@ public enum Completer {
         case files
     }
 
-    /// `pls run`'s own flags, which may sit among the values.
-    private static let runFlags: Set<String> = ["-y", "--yes", "--dry-run"]
-
     /// The automations' ids, each described.
     public static func ids(in library: Library) -> [String] {
         library.automations.map { suggestion($0.id, $0.description ?? $0.name) }
@@ -30,9 +27,10 @@ public enum Completer {
 
     /// Which value the word being typed is, by ParamBinder's own reading of the arguments before it.
     private static func values(for automation: Automation, typed: [String], word: String) -> Completion {
-        // ArgumentParser takes run's own flags out of the values before ParamBinder sees them.
+        // ArgumentParser takes run's own options out of the values before ParamBinder sees them.
         let end = typed.firstIndex(of: "--") ?? typed.endIndex
-        let parsed = ParamBinder.parse(typed[..<end].filter { !runFlags.contains($0) } + typed[end...], for: automation)
+        let values = typed[..<end].filter { !Dispatch.runOptions.contains($0) } + typed[end...]
+        let parsed = ParamBinder.parse(values, for: automation)
         if let param = parsed.awaitingValue {
             return completion(of: param)
         }

@@ -12,11 +12,7 @@ struct RunCommand: ParsableCommand {
         """
     )
 
-    @Flag(name: [.short, .long], help: "Don't ask before running.")
-    var yes = false
-
-    @Flag(help: "Show what would run, without running it.")
-    var dryRun = false
+    @OptionGroup var options: RunOptions
 
     @Argument(help: "The automation's id.", completion: runCompletion)
     var id: String
@@ -49,6 +45,6 @@ struct RunCommand: ParsableCommand {
             printError("pls: \(error)")
             throw Exit.usage
         }
-        try perform(binding, via: .run, yes: yes, dryRun: dryRun)
+        try perform(binding, via: .run, options: options)
     }
 }

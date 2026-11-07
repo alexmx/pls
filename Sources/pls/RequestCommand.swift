@@ -9,11 +9,7 @@ struct RequestCommand: AsyncParsableCommand {
         abstract: "Run what a request in plain words asks for."
     )
 
-    @Flag(name: [.short, .long], help: "Don't ask before running.")
-    var yes = false
-
-    @Flag(help: "Show what would run, without running it.")
-    var dryRun = false
+    @OptionGroup var options: RunOptions
 
     @Argument(parsing: .allUnrecognized, help: "The request; quoting it is optional.")
     var words: [String] = []
@@ -49,7 +45,7 @@ struct RequestCommand: AsyncParsableCommand {
             }
             throw Exit.notFound
         }
-        try perform(binding, via: .request, yes: yes, dryRun: dryRun)
+        try perform(binding, via: .request, options: options)
     }
 
     /// Without the model: offers the closest automations by shared words and returns the one picked, with
@@ -62,8 +58,8 @@ struct RequestCommand: AsyncParsableCommand {
             throw Exit.modelUnavailable
         }
         list(closest, numbered: true)
-        guard !dryRun, Prompt.isInteractive else {
-            printError(dryRun
+        guard !options.dryRun, Prompt.isInteractive else {
+            printError(options.dryRun
                 ? "pls would ask which one to run."
                 : "pls: no terminal to choose in; run one with `pls run <id>`")
             throw Exit.modelUnavailable

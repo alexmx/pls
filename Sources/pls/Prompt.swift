@@ -57,7 +57,7 @@ enum Prompt {
     private static func edit(_ binding: inout Binding) throws {
         for param in binding.automation.params {
             let current = binding.values[param.name]?.value
-            let fitsOnALine = current?.unicodeScalars.allSatisfy { $0.properties.generalCategory != .control } ?? true
+            let fitsOnALine = current.map(canPrefill) ?? true
             let prefill = fitsOnALine ? current : nil
             let question = fitsOnALine ? label(param) : label(param, note: "Enter keeps the current value")
             try askUntilValid(question, prefill: prefill) { (answer: String) throws(BindingError) in
@@ -65,6 +65,11 @@ enum Prompt {
                 try binding.edit(answer.trimmingCharacters(in: .whitespaces), for: param)
             }
         }
+    }
+
+    /// Whether `value` can be prefilled for editing: it shows on one line, with no newline, tab or line separator.
+    static func canPrefill(_ value: String) -> Bool {
+        !Escaping.needsEscaping(value)
     }
 
     /// Asks `question` until `apply` accepts the answer, showing why it didn't. Ctrl-D cancels.
