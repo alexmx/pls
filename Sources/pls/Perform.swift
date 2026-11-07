@@ -19,8 +19,11 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
     let (yes, dryRun) = (options.yes, options.dryRun)
     var binding = binding
     let automation = binding.automation
-    // A request is the model's guess, so it's always shown before it runs.
-    let asksFirst = (automation.confirm || trigger == .request) && !yes && !dryRun
+    // A request is the model's guess, so it's always shown before it runs. An automation can ask only for some of a
+    // param's choices, so this depends on the values, which prompting can still complete.
+    func asksFirst(_ binding: Binding) -> Bool {
+        (automation.confirm.asks(for: binding) || trigger == .request) && !yes && !dryRun
+    }
 
     // Without a terminal nothing can be asked: fail before announcing anything.
     if !dryRun, !Prompt.isInteractive {
@@ -36,7 +39,7 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
             printError(message)
             throw Exit.usage
         }
-        if asksFirst {
+        if asksFirst(binding) {
             printError(trigger == .request
                 ? "pls: a request asks before running; pass --yes to run it without a terminal"
                 : "pls: \(automation.id) asks before running; pass --yes to run it without a terminal")
@@ -44,7 +47,7 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
         }
     }
     // Say what's being repeated, unless the dry run or the confirm question is about to show the plan anyway.
-    if trigger == .again, !dryRun, !asksFirst {
+    if trigger == .again, !dryRun, !asksFirst(binding) {
         let values = automation.params.compactMap { param in
             binding.values[param.name]
                 .flatMap { $0.source == .repeated ? "\(param.name)=\(displayValue($0.value))" : nil }
@@ -54,7 +57,7 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
     if !dryRun {
         try Prompt.fillMissing(&binding)
     }
-    if asksFirst {
+    if asksFirst(binding) {
         guard try Prompt.review(&binding) else { throw Exit.cancelled }
     }
 

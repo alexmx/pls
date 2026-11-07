@@ -27,6 +27,10 @@ public enum ManifestParser {
             return reader.result
         }
         reader.readTopLevel(mapping)
+        if let node = reader.confirmNode,
+           let problem = reader.result.metadata.confirm.problem(with: reader.result.metadata.params) {
+            reader.error(problem, at: node)
+        }
         if mapping["entry"] == nil {
             reader.error("missing entry (the script file to run)", at: root)
         }
@@ -35,6 +39,8 @@ public enum ManifestParser {
 
     private struct Reader {
         var result = Result()
+        /// Where `confirm` was, to report a mismatch with the params, which are read after it or before.
+        var confirmNode: Node?
 
         mutating func readTopLevel(_ mapping: Node.Mapping) {
             for (keyNode, value) in mapping {
@@ -51,11 +57,12 @@ public enum ManifestParser {
                     }
                     result.kind = kind
                 case "confirm":
-                    guard let flag = strictBool(value) else {
-                        error("confirm must be true or false", at: value)
+                    guard let confirm = confirmation(value) else {
+                        error("confirm must be true, false or a mapping like {action: [shutdown, restart]}", at: value)
                         continue
                     }
-                    result.metadata.confirm = flag
+                    result.metadata.confirm = confirm
+                    confirmNode = value
                 case "examples": result.metadata.examples = texts(value, key) ?? []
                 case "params": readParams(value)
                 default: warning("unknown key \(key)", at: keyNode)
@@ -151,6 +158,18 @@ public enum ManifestParser {
         static let paramKeys: Set = ["name", "type", "default", "optional", "description", "min", "max", "options"]
 
         // MARK: helpers
+
+        /// `true`, `false`, or one param mapped to a choice or a list of them: `{action: [shutdown, restart]}`.
+        func confirmation(_ node: Node) -> Confirmation? {
+            if let flag = strictBool(node) {
+                return flag ? .always : .never
+            }
+            guard let mapping = node.mapping, mapping.count == 1, let (key, value) = mapping.first,
+                  let param = key.string else { return nil }
+            let choices = value.sequence.map { $0.map(scalarText) } ?? [scalarText(value)]
+            guard !choices.isEmpty, !choices.contains("") else { return nil }
+            return .when(param: param, choices: choices)
+        }
 
         /// Only `true` / `false`, as in headers; YAML's `yes` / `on` are not accepted.
         func strictBool(_ node: Node) -> Bool? {

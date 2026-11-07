@@ -63,7 +63,8 @@ Keys:
 - `@pls.example: <text>` — a request that should pick it; repeat the line for each one.
 - `@pls.param <name>: <type>[?] [= <default>] [-- <description>]` — one per param, in order.
 - `@pls.name: <text>` — display name; defaults to the id in words (`kill-port` → "Kill port").
-- `@pls.confirm: true` — always ask before running, even with `pls run`.
+- `@pls.confirm: true` — always ask before running, even with `pls run`. `@pls.confirm: action=shutdown,restart` asks
+  only when that param has one of those values (here not for `cancel`).
 
 ## Format 2: a folder with manifest.yaml
 
@@ -96,7 +97,8 @@ params:
     description: Which image type to compress
 ```
 
-Also `confirm: true`, `optional: true` on a param, and `kind: shell | applescript` (only needed when the entry's
+Also `confirm: true` (or `confirm: {action: [shutdown, restart]}` to ask only for those values), `optional: true` on
+a param, and `kind: shell | applescript` (only needed when the entry's
 extension doesn't say: `.applescript` and `.scpt` are AppleScript, anything else is shell). The entry file needs no
 header. Its folder is in `$PLS_AUTOMATION_DIR`, for reaching the files next to it.
 
@@ -164,7 +166,8 @@ That's all it knows, so:
 - Print one short line saying what happened ("Killed 2 processes on port 3000."), including when there was nothing
   to do. Exit non-zero on failure, with the reason on stderr.
 - Set `confirm: true` for anything destructive or hard to undo (deleting, killing, sending, overwriting). Requests
-  always show the plan and ask anyway; `confirm` makes `pls run` ask too.
+  always show the plan and ask anyway; `confirm` makes `pls run` ask too. When only some choices are risky, name them
+  (`confirm: action=erase`) instead of asking for every run, and don't ask from inside the script.
 - Prefer writing results next to the input over overwriting it (compressed copies go in `<folder>/compressed`).
 - Don't hardcode the user's paths or their home; take a `path` param with a `~/…` default instead.
 

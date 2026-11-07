@@ -39,6 +39,11 @@ struct ListCommand: ParsableCommand {
 
 /// The `list --json` shape. Kept in the CLI: it's an output format, not a model.
 struct AutomationJSON: Encodable {
+    struct ConfirmWhenJSON: Encodable {
+        let param: String
+        let choices: [String]
+    }
+
     struct ParamJSON: Encodable {
         let name: String
         let type: String
@@ -53,7 +58,10 @@ struct AutomationJSON: Encodable {
     let kind: String
     let source: String
     let script: String
+    /// Always asks before running.
     let confirm: Bool
+    /// Asks only when `param` has one of `choices`.
+    let confirmWhen: ConfirmWhenJSON?
     let examples: [String]
     let params: [ParamJSON]
 
@@ -64,7 +72,14 @@ struct AutomationJSON: Encodable {
         self.kind = automation.kind.rawValue
         self.source = automation.sourceURL.path
         self.script = automation.script.path
-        self.confirm = automation.confirm
+        switch automation.confirm {
+        case .never: (self.confirm, self.confirmWhen) = (false, nil)
+        case .always: (self.confirm, self.confirmWhen) = (true, nil)
+        case let .when(param, choices): (self.confirm, self.confirmWhen) = (
+                false,
+                ConfirmWhenJSON(param: param, choices: choices)
+            )
+        }
         self.examples = automation.examples
         self.params = automation.params.map { param in
             ParamJSON(

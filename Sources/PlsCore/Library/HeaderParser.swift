@@ -12,6 +12,8 @@ public enum HeaderParser {
 
     public static func parse(_ text: String, commentPrefix: String) -> Result {
         var result = Result()
+        // Checked against the params once they're all read: they can come after it.
+        var confirmLine: Int?
         // isNewline, not "\n": in Swift "\r\n" is a single Character, so CRLF files would never split.
         let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
         for (index, rawLine) in lines.enumerated() {
@@ -66,14 +68,18 @@ public enum HeaderParser {
             case "example":
                 result.metadata.examples.append(value)
             case "confirm":
-                guard let flag = Bool(value) else {
-                    report(.error, "@pls.confirm must be true or false")
+                guard let confirm = Confirmation(header: value) else {
+                    report(.error, "@pls.confirm must be true, false or <param>=<choice>,<choice>…")
                     continue
                 }
-                result.metadata.confirm = flag
+                result.metadata.confirm = confirm
+                confirmLine = lineNumber
             default:
                 report(.warning, "unknown key @pls.\(key)")
             }
+        }
+        if let confirmLine, let problem = result.metadata.confirm.problem(with: result.metadata.params) {
+            result.diagnostics.append(Diagnostic(.error, problem, line: confirmLine))
         }
         return result
     }

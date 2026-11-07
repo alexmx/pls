@@ -22,7 +22,7 @@ struct HeaderParserTests {
         #expect(metadata.name == "Kill process on port")
         #expect(metadata.description == "Kill whatever is listening on a TCP port")
         #expect(metadata.examples == ["free up port 3000", "something is stuck on 8080"])
-        #expect(metadata.confirm)
+        #expect(metadata.confirm == .always)
         let port = try Param(
             name: "port",
             type: .int(1...65535),
@@ -88,12 +88,39 @@ struct HeaderParserTests {
     @Test(arguments: [
         ("# @pls.description:", "@pls.description has no value"),
         ("# @pls.description Missing colon", "expected \"@pls.description: <value>\""),
-        ("# @pls.confirm: yes", "@pls.confirm must be true or false"),
+        ("# @pls.confirm: yes", "@pls.confirm must be true, false or <param>=<choice>,<choice>…"),
+        ("# @pls.confirm: action=", "@pls.confirm must be true, false or <param>=<choice>,<choice>…"),
+        (
+            "# @pls.confirm: mode=dark\n# @pls.param action: enum(shutdown|restart|cancel) = shutdown",
+            "confirm names param mode, which the automation doesn't have"
+        ),
+        (
+            "# @pls.confirm: action=halt\n# @pls.param action: enum(shutdown|restart|cancel) = shutdown",
+            "confirm: \"halt\" is not one of shutdown, restart, cancel"
+        ),
         ("# @pls.param a: int\n# @pls.param a: string", "param \"a\" is declared twice")
     ])
     func keyErrors(header: String, message: String) {
         let errors = HeaderParser.parse(header, commentPrefix: "#").diagnostics.filter { $0.severity == .error }
         #expect(errors.map(\.message) == [message])
+    }
+
+    /// The confirm line can come before the param it names.
+    @Test func confirmForSomeChoices() {
+        let result = HeaderParser.parse("""
+        # @pls.confirm: action = shutdown, restart
+        # @pls.param action: enum(shutdown|restart|cancel) = shutdown
+        """, commentPrefix: "#")
+        #expect(result.diagnostics.isEmpty)
+        #expect(result.metadata.confirm == .when(param: "action", choices: ["shutdown", "restart"]))
+    }
+
+    @Test func aConfirmThatDoesntFitIsReportedOnItsLine() {
+        let result = HeaderParser.parse(
+            "#!/bin/zsh\n# @pls.confirm: action=halt\n# @pls.param action: enum(shutdown|restart|cancel) = shutdown\n",
+            commentPrefix: "#"
+        )
+        #expect(result.diagnostics.map(\.line) == [2])
     }
 
     @Test func badParamIsReportedWithItsLine() {

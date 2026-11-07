@@ -44,7 +44,7 @@ struct ManifestParserTests {
         let metadata = result.metadata
         #expect(metadata.name == "Compress images")
         #expect(metadata.description == "Re-encode images in a folder at lower quality")
-        #expect(metadata.confirm)
+        #expect(metadata.confirm == .always)
         #expect(metadata.examples == ["shrink my screenshots"])
         #expect(try metadata.params == [
             Param(
@@ -90,10 +90,32 @@ struct ManifestParserTests {
     }
 
     @Test(arguments: [
+        ("confirm: {action: [shutdown, restart]}", ["shutdown", "restart"]),
+        ("confirm:\n  action: shutdown", ["shutdown"])
+    ])
+    func confirmForSomeChoices(confirm: String, choices: [String]) {
+        let result = ManifestParser.parse("""
+        entry: run.sh
+        \(confirm)
+        params:
+          - {name: action, type: enum, options: [shutdown, restart, cancel], default: shutdown}
+        """)
+        #expect(result.diagnostics.isEmpty)
+        #expect(result.metadata.confirm == .when(param: "action", choices: choices))
+    }
+
+    @Test(arguments: [
         ("name: x\n", "missing entry (the script file to run)"),
         ("entry: run.sh\nkind: python\n", "kind must be shell or applescript"),
-        ("entry: run.sh\nconfirm: maybe\n", "confirm must be true or false"),
-        ("entry: run.sh\nconfirm: yes\n", "confirm must be true or false"),
+        (
+            "entry: run.sh\nconfirm: maybe\n",
+            "confirm must be true, false or a mapping like {action: [shutdown, restart]}"
+        ),
+        (
+            "entry: run.sh\nconfirm: yes\n",
+            "confirm must be true, false or a mapping like {action: [shutdown, restart]}"
+        ),
+        ("entry: run.sh\nconfirm: {mode: dark}\n", "confirm names param mode, which the automation doesn't have"),
         ("entry: run.sh\nparams:\n  - {name: a, type: int, optional: yes}\n", "optional must be true or false"),
         (
             "entry: run.sh\nparams:\n  - {name: a, type: string, default: [x, y]}\n",

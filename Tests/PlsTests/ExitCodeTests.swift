@@ -13,11 +13,24 @@ struct ExitCodeTests {
         try pls.write("killed.sh", "# @pls.description: Kill itself\nkill -TERM $$\n")
         try pls.write("no-interpreter.sh", "#!/nonexistent/interpreter\necho hi\n", executable: true)
         try pls.write("careful.sh", "# @pls.description: Ask first\n# @pls.confirm: true\necho ran\n")
+        try pls.write("power.sh", """
+        # @pls.description: Shut down or cancel
+        # @pls.param action: enum(shutdown|cancel)
+        # @pls.confirm: action=shutdown
+        echo $PLS_ACTION
+        """)
         try pls.write("count.sh", "# @pls.description: Print a number\n# @pls.param n: int\necho $PLS_N\n")
         try pls.write(
             "applescript-fails.applescript",
             "-- @pls.description: Fail\non run argv\n\terror \"No image at /x.jpg\" number 3\nend run\n"
         )
+    }
+
+    /// `confirm: action=shutdown` asks only for shutdown, so cancel runs without a terminal to ask in.
+    @Test func aChoiceThatDoesntAskRunsWithoutATerminal() async throws {
+        let result = try await pls.run("run", "power", "cancel")
+        #expect(result.status == 0)
+        #expect(result.stdout == "cancel\n")
     }
 
     @Test func aScriptExitsWithItsOwnCode() async throws {
@@ -41,7 +54,8 @@ struct ExitCodeTests {
         ["run", "count", "--n", "abc"],
         ["history", "-n", "0"],
         // Asks first, and there's no terminal to ask in.
-        ["run", "careful"]
+        ["run", "careful"],
+        ["run", "power", "shutdown"]
     ])
     func usageErrorsAre64(_ arguments: [String]) async throws {
         #expect(try await pls.run(arguments).status == 64)

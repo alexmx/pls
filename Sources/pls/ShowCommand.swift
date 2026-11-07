@@ -20,7 +20,12 @@ struct ShowCommand: ParsableCommand {
         if case .folder = automation.source {
             print("  script   \(automation.script.lastPathComponent)")
         }
-        print("  confirm  \(automation.confirm ? "always asks before running" : "no")")
+        let confirm = switch automation.confirm {
+        case .never: "no"
+        case .always: "always asks before running"
+        case let .when(param, choices): "asks before running when \(param) is \(choices.joined(separator: " or "))"
+        }
+        print("  confirm  \(confirm)")
 
         if !automation.params.isEmpty {
             print("\nParams")

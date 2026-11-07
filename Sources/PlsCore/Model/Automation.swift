@@ -11,7 +11,7 @@ public struct Metadata: Sendable, Equatable {
     public var description: String?
     public var params: [Param] = []
     public var examples: [String] = []
-    public var confirm = false
+    public var confirm = Confirmation.never
 
     public init() {}
 }
@@ -31,7 +31,7 @@ public struct Automation: Sendable, Equatable {
     public let description: String?
     public let params: [Param]
     public let examples: [String]
-    public let confirm: Bool
+    public let confirm: Confirmation
 
     public init(id: String, kind: AutomationKind, source: Source, metadata: Metadata) {
         self.id = id
