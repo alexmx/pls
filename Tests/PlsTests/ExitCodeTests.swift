@@ -74,7 +74,7 @@ struct ExitCodeTests {
     }
 
     /// The `pls` built next to this test bundle.
-    private static func binary() -> URL {
+    static func binary() -> URL {
         Bundle(for: ThrowawayHome.self).bundleURL.deletingLastPathComponent().appending(path: "pls")
     }
 
