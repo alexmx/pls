@@ -1,9 +1,10 @@
 import Foundation
-import Synchronization
+import Subprocess
+import System
 
 /// Everything `pls doctor` reports: loading problems plus checks on the automations that loaded.
 public enum Doctor {
-    public static func check(_ library: Library) -> [Diagnostic] {
+    public static func check(_ library: Library) async -> [Diagnostic] {
         var found = library.diagnostics
         for automation in library.automations {
             func warn(_ message: String, file: URL = automation.declarationURL) {
@@ -34,18 +35,22 @@ public enum Doctor {
                 """)
             }
         }
-        return found + syntaxProblems(library.automations)
+        return await found + syntaxProblems(library.automations)
     }
 
     /// `syntaxProblem` for each automation, in order. Each check starts a process, so they run side by side: one after
     /// another they took seconds for a 59-automation library.
-    static func syntaxProblems(_ automations: [Automation]) -> [Diagnostic] {
-        let found = Mutex([Diagnostic?](repeating: nil, count: automations.count))
-        DispatchQueue.concurrentPerform(iterations: automations.count) { index in
-            let problem = syntaxProblem(automations[index])
-            found.withLock { $0[index] = problem }
+    static func syntaxProblems(_ automations: [Automation]) async -> [Diagnostic] {
+        await withTaskGroup(of: (Int, Diagnostic?).self) { group in
+            for (index, automation) in automations.enumerated() {
+                group.addTask { await (index, syntaxProblem(automation)) }
+            }
+            var found = [Diagnostic?](repeating: nil, count: automations.count)
+            for await (index, problem) in group {
+                found[index] = problem
+            }
+            return found.compactMap(\.self)
         }
-        return found.withLock { $0.compactMap(\.self) }
     }
 
     /// "e.g. ~/Pictures/beach.jpg", "like Samantha": an example in a description, with the words after it.
@@ -56,7 +61,7 @@ public enum Doctor {
     /// An error if the script doesn't compile or parse, so it couldn't run: AppleScript through `osacompile`, a zsh,
     /// bash or sh script through its shell's `-n` (zsh without a shebang, as it runs). Other interpreters, and
     /// compiled `.scpt` files, aren't checked.
-    static func syntaxProblem(_ automation: Automation) -> Diagnostic? {
+    static func syntaxProblem(_ automation: Automation) async -> Diagnostic? {
         let script = automation.script
         let checker: [String]
         switch automation.kind {
@@ -71,7 +76,7 @@ public enum Doctor {
             guard let shell, ["zsh", "bash", "sh"].contains(shell) else { return nil }
             checker = ["/bin/\(shell)", "-n"]
         }
-        guard let output = errorOutput(of: checker + [script.path]) else { return nil }
+        guard let output = await errorOutput(of: checker + [script.path]) else { return nil }
         // "<path>:12: error: Expected … (-2741)" (osacompile), "<path>:4: parse error …" (zsh),
         // "<path>: line 4: syntax error …" (bash, sh): keep the line number and the message.
         let firstLine = output.split(separator: "\n").first.map(String.init) ?? output
@@ -88,23 +93,14 @@ public enum Doctor {
     }
 
     /// What `arguments` writes to stderr when it fails; nil when it succeeds or can't be started.
-    private static func errorOutput(of arguments: [String]) -> String? {
-        let process = Process()
-        process.executableURL = URL(filePath: arguments[0])
-        process.arguments = Array(arguments.dropFirst())
-        let stderr = Pipe()
-        process.standardInput = FileHandle.nullDevice
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = stderr
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-        let data = stderr.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        guard process.terminationStatus != 0 else { return nil }
-        return String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+    private static func errorOutput(of arguments: [String]) async -> String? {
+        guard let result = try? await Subprocess.run(
+            .path(FilePath(arguments[0])),
+            arguments: Arguments(Array(arguments.dropFirst())),
+            output: .discarded,
+            error: .string(limit: 64 * 1024)
+        ), !result.terminationStatus.isSuccess else { return nil }
+        return result.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Routes each example of `automations` against the whole library and warns about every one the model sends

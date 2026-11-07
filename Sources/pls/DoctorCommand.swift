@@ -21,7 +21,7 @@ struct DoctorCommand: AsyncParsableCommand {
     @MainActor
     func run() async throws {
         let library = Library.loadDefault()
-        var problems = Doctor.check(library)
+        var problems = await Doctor.check(library)
         var examplesLine: String?
         if !examples.isEmpty {
             let checked = try await checkExamples(in: library)
