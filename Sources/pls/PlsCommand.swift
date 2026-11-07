@@ -7,40 +7,39 @@ import PlsCore
 /// start with.
 ///
 /// Commands that prompt must run on the main thread: prompting from a background thread, Ctrl-C and SIGTERM didn't end
-/// pls. So `main` parses and runs commands itself on the main actor, rather than through ArgumentParser's async `main`,
-/// which would run them on a background thread. That covers synchronous commands; an async command's `run()` is
-/// `@MainActor` itself (doctor, requests), since an async call would otherwise leave the main actor.
+/// pls. So `main` parses and runs commands itself on the main actor, requests included, rather than through
+/// ArgumentParser's async `main`, which would run them on a background thread. That covers synchronous commands; an
+/// async command's `run()` is `@MainActor` itself (doctor, requests), since an async call would otherwise leave the
+/// main actor.
 @main
 @MainActor
 enum Main {
     static func main() async {
         let arguments = Array(CommandLine.arguments.dropFirst())
         let commands = PlsCommand.configuration.subcommands.compactMap { $0.configuration.commandName }
-        if Dispatch.isRequest(arguments, commands: commands) {
-            await RequestCommand.main(arguments)
-            return
-        }
+        let root: ParsableCommand.Type = Dispatch.isRequest(arguments, commands: commands)
+            ? RequestCommand.self : PlsCommand.self
         do {
-            var command = try PlsCommand.parseAsRoot(arguments)
+            var command = try root.parseAsRoot(arguments)
             if var asyncCommand = command as? AsyncParsableCommand {
                 try await asyncCommand.run()
             } else {
                 try command.run()
             }
         } catch {
-            exit(withError: error)
+            exit(withError: error, parsedBy: root)
         }
     }
 
     /// ArgumentParser's errors written like pls's own, `pls: missing expected argument '<id>'` rather than
     /// `Error: Missing…`, with the usage after them. Help, `--version` and thrown exit codes pass through unchanged.
-    private static func exit(withError error: Error) -> Never {
-        let message = PlsCommand.fullMessage(for: error)
-        let code = PlsCommand.exitCode(for: error)
-        guard code != .success, message.hasPrefix("Error: ") else { PlsCommand.exit(withError: error) }
+    private static func exit(withError error: Error, parsedBy root: ParsableCommand.Type) -> Never {
+        let message = root.fullMessage(for: error)
+        let code = root.exitCode(for: error)
+        guard code != .success, message.hasPrefix("Error: ") else { root.exit(withError: error) }
         var text = message.dropFirst("Error: ".count)
         // Lowercase a capitalised word (`Missing`), not a name or an option (`--limit`).
-        if text.count > 1, text.first?.isUppercase == true, text.dropFirst().first?.isLowercase == true {
+        if text.first?.isUppercase == true, text.dropFirst().first?.isLowercase == true {
             text = text.prefix(1).lowercased() + text.dropFirst()
         }
         printError("pls: " + text.trimmingCharacters(in: .newlines))

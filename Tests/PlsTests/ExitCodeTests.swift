@@ -40,7 +40,9 @@ struct ExitCodeTests {
     @Test(arguments: [
         (["run"], "pls: missing expected argument '<id>'\n"),
         (["history", "-n", "0"], "pls: --limit must be at least 1\n"),
-        (["run", "--bogus", "x"], "pls: unknown option '--bogus'\n")
+        (["run", "--bogus", "x"], "pls: unknown option '--bogus'\n"),
+        // A request, parsed by its own command.
+        (["foo", "--dry-run=x"], "pls: the option '--dry-run' does not take any value")
     ])
     func argumentErrorsStartWithPls(_ arguments: [String], firstLine: String) throws {
         let result = try pls(arguments)
