@@ -1,1 +1,1 @@
-../../../skills/pls/SKILL.md
+../../../skills/use-pls/SKILL.md

@@ -10,7 +10,7 @@ struct AgentSkillTests {
         let parts = AgentSkill.markdown.components(separatedBy: "---\n")
         try #require(parts.count >= 3 && parts[0].isEmpty, "no frontmatter at the top")
         let frontmatter = try #require(try Yams.load(yaml: parts[1]) as? [String: String])
-        #expect(frontmatter["name"] == "pls")
+        #expect(frontmatter["name"] == "use-pls")
         let description = try #require(frontmatter["description"])
         #expect(!description.isEmpty && description.count <= 1024)
     }

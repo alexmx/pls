@@ -1,5 +1,5 @@
 ---
-name: pls
+name: use-pls
 description: Write automations for pls, the macOS command-line runner that picks and fills automations from plain-language requests with Apple's on-device model. Use this whenever the user wants to add, write, fix or improve a pls automation, turn a shell script, AppleScript or Shortcut into one, make something runnable as `pls "<request>"`, or edits files in a pls library (`~/.config/pls/automations`, `$PLS_HOME/automations`), including `@pls.` headers and `manifest.yaml` files, even if they only say "automate this" in a project that uses pls.
 ---
 

@@ -8,7 +8,7 @@ struct SkillCommand: ParsableCommand {
         discussion: """
         The skill is a SKILL.md in the Agent Skills format. Save it where your agent looks for skills, for Claude Code:
         
-          mkdir -p ~/.claude/skills/pls && pls skill > ~/.claude/skills/pls/SKILL.md
+          mkdir -p ~/.claude/skills/use-pls && pls skill > ~/.claude/skills/use-pls/SKILL.md
         
         Run it again after updating pls, so the skill matches.
         """

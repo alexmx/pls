@@ -20,11 +20,11 @@ Workflow: main
 - `Tests/PlsTests/`: tests for the CLI's own code (the zsh completion script; exit codes and error messages, run
   against the built `pls`)
 - `Tests/PlsCoreTests/`: Swift Testing; every top-level suite has `@Suite(.timeLimit(.minutes(1)))` (lint-enforced)
-- `skills/pls/SKILL.md`: the agent skill, embedded into `PlsCore` through the `Resources/SKILL.md` symlink
+- `skills/use-pls/SKILL.md`: the agent skill, embedded into `PlsCore` through the `Resources/SKILL.md` symlink
 - `examples/home/`: sample library (each automation format, plus a Shortcut wrapper); doubles as format documentation
 - `poc/`: throwaway proof of concept for the model (own package, excluded from format/lint); results in `poc/results/`
 
 ## Conventions
-- `skills/pls/SKILL.md` is the guide agents write automations from (`pls skill` prints it; skill installers read it
-  from the repo): update it when an automation format, param type or how values reach a script changes. Tests keep
-  its examples valid, not complete.
+- `skills/use-pls/SKILL.md` is the guide agents write automations from (`pls skill` prints it; skill installers read
+  it from the repo): update it when an automation format, param type or how values reach a script changes. Tests
+  keep its examples valid, not complete.
