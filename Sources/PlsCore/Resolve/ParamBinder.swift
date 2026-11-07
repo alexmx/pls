@@ -163,14 +163,20 @@ public enum ParamBinder {
 
     /// A binding from the values the model read out of a request (SPEC §7). A value that's empty or doesn't fit its
     /// param is left out, so the param falls back to its default or gets asked for; the plan shows which. A value equal
-    /// to the default stays the default: the model often fills one in, and the request didn't choose it.
+    /// to the default stays the default: the model often fills one in, and the request didn't choose it. A path that
+    /// doesn't look like one ("my screenshots folder") describes a folder rather than naming it, so it's left out.
     public static func bind(_ automation: Automation, request: String, values: [String: String]) -> Binding {
         var binding = Binding(defaultsOf: automation, request: request)
         for param in automation.params {
-            guard let value = values[param.name], !value.isEmpty, value != param.defaultValue else { continue }
+            guard let value = values[param.name], !value.isEmpty, value != param.defaultValue,
+                  param.type != .path || looksLikePath(value) else { continue }
             try? binding.supply(value, for: param, source: .request)
         }
         return binding
+    }
+
+    private static func looksLikePath(_ value: String) -> Bool {
+        value.hasPrefix("~") || value.hasPrefix("/") || value.hasPrefix(".") || value.contains("/")
     }
 
     /// A binding that repeats a run's chosen values against the automation as it is now (SPEC §8): they're replayed,

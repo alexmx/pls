@@ -278,6 +278,9 @@ Two stages, both with greedy (deterministic) sampling and a fresh session each:
 Only automations with a description are offered to the router. Then the values are merged and validated (§4.3):
 a model value that doesn't fit its param is dropped, so the param falls back to its default or is prompted for; one
 equal to the default stays a default (the model often fills defaults in), so it isn't shown or replayed as chosen.
+A `path` value must look like a path (start with `~`, `/` or `.`, or contain a `/`): the model turns descriptions
+such as "my screenshots folder" into values, and a bare name like `Desktop` would be relative to the current
+directory anyway.
 Missing required values are prompted for, and the plan is shown.
 
 - **Fuzzy match:** ranks automations by the words a request shares with their id, name, description and examples

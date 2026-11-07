@@ -151,6 +151,18 @@ struct ParamBinderTests {
         #expect(binding.missing.map(\.name) == ["port"])
     }
 
+    /// The model turns a description like "my screenshots folder" into a path; only values that look like paths count.
+    @Test(arguments: [
+        ("~/Pictures", true), ("/tmp", true), ("./out", true), ("..", true), ("Pictures/trip", true),
+        ("my screenshots folder", false), ("Desktop", false)
+    ])
+    func requestPathsMustLookLikePaths(value: String, kept: Bool) throws {
+        let automation = try makeAutomation("a", params: "folder: path")
+        let binding = ParamBinder.bind(automation, request: "r", values: ["folder": value])
+        #expect(binding.values["folder"] == (kept ? BoundValue(value, .request) : nil))
+        #expect(binding.missing.isEmpty == kept)
+    }
+
     // MARK: editing in review
 
     private func reviewed() throws -> Binding {
