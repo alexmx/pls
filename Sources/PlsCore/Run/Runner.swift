@@ -16,7 +16,8 @@ public enum Runner {
     /// Returns the program's exit status, or 128 + the signal number if a signal ended it (as shells do).
     ///
     /// SIGINT and SIGQUIT are reset to their defaults in the script, so it can be interrupted even when the caller
-    /// ignores them (the CLI does, so it outlives the script and reports how it ended).
+    /// ignores them (the CLI does, so it outlives the script and reports how it ended). An AppleScript's stderr is read
+    /// line by line and passed on through `AppleScriptErrors`, so a failing script shows just its message.
     public static func run(
         _ invocation: Invocation,
         environment: [String: String] = ProcessInfo.processInfo.environment
@@ -37,19 +38,32 @@ public enum Runner {
         }
         let variables = invocation.environment(inheriting: environment)
         let path = invocation.executable.path
+        let configuration = Configuration(
+            executable: .path(FilePath(path)),
+            arguments: Arguments(invocation.arguments),
+            environment: .custom(Dictionary(uniqueKeysWithValues: variables.compactMap { key, value in
+                Environment.Key(rawValue: key).map { ($0, value) }
+            })),
+            platformOptions: options
+        )
         let status: TerminationStatus
         do {
-            status = try await Subprocess.run(
-                .path(FilePath(path)),
-                arguments: Arguments(invocation.arguments),
-                environment: .custom(Dictionary(uniqueKeysWithValues: variables.compactMap { key, value in
-                    Environment.Key(rawValue: key).map { ($0, value) }
-                })),
-                platformOptions: options,
-                input: .currentStandardInput,
-                output: .currentStandardOutput,
-                error: .currentStandardError
-            ).terminationStatus
+            if path == "/usr/bin/osascript" {
+                status = try await Subprocess.run(
+                    configuration, input: .currentStandardInput, output: .currentStandardOutput, error: .sequence
+                ) { execution in
+                    for try await line in execution.standardError.strings() {
+                        FileHandle.standardError.write(Data((AppleScriptErrors.cleaned(line) + "\n").utf8))
+                    }
+                }.terminationStatus
+            } else {
+                status = try await Subprocess.run(
+                    configuration,
+                    input: .currentStandardInput,
+                    output: .currentStandardOutput,
+                    error: .currentStandardError
+                ).terminationStatus
+            }
         } catch let error as SubprocessError where error.code == .executableNotFound {
             throw LaunchError(description: "couldn't start \(path): it, or the program its #! line names, can't be run")
         } catch {

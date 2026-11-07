@@ -14,10 +14,21 @@ struct ExitCodeTests {
         try pls.write("no-interpreter.sh", "#!/nonexistent/interpreter\necho hi\n", executable: true)
         try pls.write("careful.sh", "# @pls.description: Ask first\n# @pls.confirm: true\necho ran\n")
         try pls.write("count.sh", "# @pls.description: Print a number\n# @pls.param n: int\necho $PLS_N\n")
+        try pls.write(
+            "applescript-fails.applescript",
+            "-- @pls.description: Fail\non run argv\n\terror \"No image at /x.jpg\" number 3\nend run\n"
+        )
     }
 
     @Test func aScriptExitsWithItsOwnCode() async throws {
         #expect(try await pls.run("run", "fails").status == 3)
+    }
+
+    /// osascript's location and error number around the message are left out; it exits 1 whatever the number.
+    @Test func aFailingAppleScriptShowsJustItsMessage() async throws {
+        let result = try await pls.run("run", "applescript-fails")
+        #expect(result.status == 1)
+        #expect(result.stderr == "No image at /x.jpg\n")
     }
 
     @Test func aScriptEndedBySignalIs128PlusTheSignal() async throws {
