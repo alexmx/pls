@@ -263,9 +263,6 @@ public struct RoutingBudget: Equatable, Sendable {
         automations > Shortlist.threshold
     }
 
-    /// How many automations a shortlisted request reads first.
-    public static let shortlistSize = Shortlist.size
-
     /// What to tell the user once the routing list leaves little room for the request and the answer; nil until then.
     public var warning: String? {
         if tokens > contextSize {

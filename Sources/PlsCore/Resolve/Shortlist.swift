@@ -3,11 +3,11 @@ import NaturalLanguage
 /// The automations most likely to be what a request asks for, by meaning. Routing a big library over every
 /// automation got both slower and less accurate (59 automations: 60 of 73 requests right in 3.4s, against 67 in 1.9s
 /// over the closest 10), while up to about 30 it made no difference; so only libraries above that are cut down.
-enum Shortlist {
+public enum Shortlist {
     /// Libraries with more automations than this are shortlisted.
-    static let threshold = 30
+    public static let threshold = 30
     /// How many automations a shortlist keeps.
-    static let size = 10
+    public static let size = 10
 
     /// The `size` automations whose description or examples are closest to `request`, in their original order; all of
     /// them when there are `threshold` or fewer, or when the request is clearly in another language (the sentence
