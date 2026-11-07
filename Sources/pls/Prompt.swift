@@ -19,17 +19,18 @@ enum Prompt {
         }
     }
 
-    /// Shows the plan and asks "Run? [Y/n/e]". `e` edits each value in turn, then shows the plan again.
-    /// Returns false if the answer is no; Ctrl-D while editing cancels.
-    static func review(_ binding: inout Binding) throws -> Bool {
-        planLines(binding).forEach(printError)
+    /// Shows the plan, with what `preview` says the run would do, and asks "Run? [Y/n/e]". `e` edits each value in
+    /// turn, then shows both again. Returns false if the answer is no; Ctrl-D while editing cancels.
+    @MainActor
+    static func review(_ binding: inout Binding, preview: (Binding) async -> [String]) async throws -> Bool {
+        await (planLines(binding) + preview(binding)).forEach(printError)
         while true {
             switch ask("  Run? [Y/n/e] ")?.trimmingCharacters(in: .whitespaces).lowercased() {
             case nil, "n", "no": return false
             case "", "y", "yes": return true
             case "e", "edit":
                 try edit(&binding)
-                planLines(binding).forEach(printError)
+                await (planLines(binding) + preview(binding)).forEach(printError)
             default: continue
             }
         }

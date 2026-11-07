@@ -29,6 +29,9 @@ struct ShowCommand: ParsableCommand {
         if automation.background {
             print("  runs     in the background (`pls jobs` lists it)")
         }
+        if automation.preview {
+            print("  preview  says what it would do before asking, and with --dry-run")
+        }
 
         if !automation.params.isEmpty {
             print("\nParams")

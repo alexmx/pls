@@ -21,3 +21,14 @@ func invocationLines(_ invocation: Invocation) -> [String] {
     return ["", "  command  \(invocation.commandLine)"]
         + variables.enumerated().map { index, line in (index == 0 ? "  env      " : "           ") + line }
 }
+
+/// A preview run's output under a heading, and its exit status when it failed.
+func previewLines(status: Int32, output: String) -> [String] {
+    let lines = output.isEmpty ? ["(it printed nothing)"] : output.split(
+        separator: "\n",
+        omittingEmptySubsequences: false
+    )
+    .map(String.init)
+    return ["", "  preview"] + lines
+        .map { "    " + $0 } + (status == 0 ? [] : ["    (the preview failed with exit \(status))"])
+}

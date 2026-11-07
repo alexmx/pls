@@ -63,6 +63,7 @@ struct AutomationJSON: Encodable {
     /// Asks only when `param` has one of `choices`.
     let confirmWhen: ConfirmWhenJSON?
     let background: Bool
+    let preview: Bool
     let examples: [String]
     let params: [ParamJSON]
 
@@ -82,6 +83,7 @@ struct AutomationJSON: Encodable {
             )
         }
         self.background = automation.background
+        self.preview = automation.preview
         self.examples = automation.examples
         self.params = automation.params.map { param in
             ParamJSON(

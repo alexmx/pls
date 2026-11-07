@@ -113,6 +113,14 @@ struct RunTests {
         #expect(run.commandLine == "\(script.path) 'it'\\''s here' ''")
     }
 
+    @Test func aPreviewInvocationSetsPlsPreview() throws {
+        let home = try TempHome()
+        try home.write("a.sh", "#!/bin/zsh\n")
+        let binding = try binding(home, "a")
+        #expect(Invocation(binding, preview: true).variables["PLS_PREVIEW"] == "1")
+        #expect(Invocation(binding).variables["PLS_PREVIEW"] == nil)
+    }
+
     // MARK: runner
 
     /// Runs the automation with `OUT` pointing at a file the script writes to; returns (status, file contents).

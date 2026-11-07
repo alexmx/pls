@@ -74,4 +74,30 @@ public enum Runner {
         case let .signaled(signal): 128 + signal
         }
     }
+
+    /// What a preview run of `binding` prints (`Automation.preview`), output and errors together, with its exit status.
+    /// It has no input, so it can't stop to ask anything.
+    public static func preview(
+        _ binding: Binding, environment: [String: String] = ProcessInfo.processInfo.environment
+    ) async throws(LaunchError) -> (status: Int32, output: String) {
+        let invocation = Invocation(binding, preview: true)
+        do {
+            let result = try await Subprocess.run(
+                .path(FilePath(invocation.executable.path)),
+                arguments: Arguments(invocation.arguments),
+                environment: .custom(Dictionary(uniqueKeysWithValues: invocation.environment(inheriting: environment)
+                        .compactMap { key, value in Environment.Key(rawValue: key).map { ($0, value) } })),
+                input: .none,
+                output: .string(limit: 1 << 16),
+                error: .combinedWithOutput
+            )
+            let status: Int32 = switch result.terminationStatus {
+            case let .exited(code): code
+            case let .signaled(signal): 128 + signal
+            }
+            return (status, result.standardOutput.trimmingCharacters(in: .newlines))
+        } catch {
+            throw LaunchError(description: "couldn't preview \(invocation.executable.path): \(error)")
+        }
+    }
 }

@@ -8,10 +8,14 @@ public struct Invocation: Sendable, Equatable {
     /// Set on top of the inherited environment.
     public let variables: [String: String]
 
-    public init(_ binding: Binding, homeDirectory: String = NSHomeDirectory()) {
+    /// With `preview`, the script also gets `PLS_PREVIEW=1`: it says what it would do and changes nothing.
+    public init(_ binding: Binding, preview: Bool = false, homeDirectory: String = NSHomeDirectory()) {
         let automation = binding.automation
         var values: [String] = []
         var variables = ["PLS_ID": automation.id]
+        if preview {
+            variables["PLS_PREVIEW"] = "1"
+        }
 
         for param in automation.params {
             let key = Self.variableName(for: param.name)

@@ -14,6 +14,8 @@ public struct Metadata: Sendable, Equatable {
     public var confirm = Confirmation.never
     /// Runs detached, as a job (`JobStore`), instead of holding the terminal until it ends.
     public var background = false
+    /// Supports a preview run (`PLS_PREVIEW=1`) that says what it would do and changes nothing.
+    public var preview = false
 
     public init() {}
 }
@@ -35,6 +37,7 @@ public struct Automation: Sendable, Equatable {
     public let examples: [String]
     public let confirm: Confirmation
     public let background: Bool
+    public let preview: Bool
 
     public init(id: String, kind: AutomationKind, source: Source, metadata: Metadata) {
         self.id = id
@@ -46,6 +49,7 @@ public struct Automation: Sendable, Equatable {
         self.examples = metadata.examples
         self.confirm = metadata.confirm
         self.background = metadata.background
+        self.preview = metadata.preview
     }
 
     /// The file or folder the automation was loaded from.

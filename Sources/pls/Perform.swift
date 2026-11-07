@@ -57,8 +57,18 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
     if !dryRun {
         try Prompt.fillMissing(&binding)
     }
+    // An automation that supports it says what it would do (`@pls.preview`); only complete values can be previewed.
+    func preview(_ binding: Binding) async -> [String] {
+        guard automation.preview, binding.missing.isEmpty else { return [] }
+        do {
+            let (status, output) = try await Runner.preview(binding)
+            return previewLines(status: status, output: output)
+        } catch {
+            return ["", "  preview: \(error)"]
+        }
+    }
     if asksFirst(binding) {
-        guard try Prompt.review(&binding) else { throw Exit.cancelled }
+        guard try await Prompt.review(&binding, preview: preview) else { throw Exit.cancelled }
     }
 
     if dryRun {
@@ -69,6 +79,7 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
             if automation.background {
                 print("  runs in the background")
             }
+            await preview(binding).forEach { print($0) }
         } else {
             print("\n  pls would ask for \(binding.missing.map(\.name).joined(separator: ", ")) first.")
         }

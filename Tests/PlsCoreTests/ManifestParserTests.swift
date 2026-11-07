@@ -108,6 +108,7 @@ struct ManifestParserTests {
         ("name: x\n", "missing entry (the script file to run)"),
         ("entry: run.sh\nkind: python\n", "kind must be shell or applescript"),
         ("entry: run.sh\nbackground: yes\n", "background must be true or false"),
+        ("entry: run.sh\npreview: yes\n", "preview must be true or false"),
         (
             "entry: run.sh\nconfirm: maybe\n",
             "confirm must be true, false or a mapping like {action: [shutdown, restart]}"

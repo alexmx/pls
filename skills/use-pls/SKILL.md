@@ -66,6 +66,7 @@ Keys:
 - `@pls.confirm: true` — always ask before running, even with `pls run`. `@pls.confirm: action=shutdown,restart` asks
   only when that param has one of those values (here not for `cancel`).
 - `@pls.background: true` — run detached as a job instead of holding the terminal (see Script conventions).
+- `@pls.preview: true` — the script supports a preview run that says what it would do (see Script conventions).
 
 ## Format 2: a folder with manifest.yaml
 
@@ -98,7 +99,7 @@ params:
     description: Which image type to compress
 ```
 
-Also `background: true`, `confirm: true` (or `confirm: {action: [shutdown, restart]}` to ask only for those values), `optional: true` on
+Also `background: true`, `preview: true`, `confirm: true` (or `confirm: {action: [shutdown, restart]}` to ask only for those values), `optional: true` on
 a param, and `kind: shell | applescript` (only needed when the entry's
 extension doesn't say: `.applescript` and `.scpt` are AppleScript, anything else is shell). The entry file needs no
 header. Its folder is in `$PLS_AUTOMATION_DIR`, for reaching the files next to it.
@@ -119,7 +120,7 @@ Types, header syntax / manifest fields:
 Each param is required (asked for if missing), optional (`name: string?` / `optional: true`; may be left empty, no
 default) or has a default (`= value` / `default: value`); never both optional and defaulted. Defaults must be valid
 for the type. Names are lowercase letters, digits and `_`, starting with a letter. These names are reserved:
-`automation_dir`, `dry_run`, `help`, `home`, `id`, `model`, `yes`.
+`automation_dir`, `dry_run`, `help`, `home`, `id`, `model`, `preview`, `yes`.
 
 ## How values reach the script
 
@@ -175,6 +176,10 @@ That's all it knows, so:
   with everything it started. So print one line saying what's happening first, then wait (`exec sleep`, `exec
   caffeinate`, …). A param value that only stops the job (`minutes 0`) works by replacing it with a run that just
   prints and exits.
+- For something that deletes, moves or overwrites, consider `@pls.preview: true`: pls then also runs the script with
+  `PLS_PREVIEW=1` for `--dry-run` and before asking "Run?", and shows what it prints. In a preview the script must
+  change nothing, so check it first: `if [[ -n $PLS_PREVIEW ]]; then echo "Would trash 23 items (1.4 GB)"; exit 0;
+  fi`. A preview has no input and should be quick. Without the key, pls never runs the script for a dry run.
 - Prefer writing results next to the input over overwriting it (compressed copies go in `<folder>/compressed`).
 - Don't hardcode the user's paths or their home; take a `path` param with a `~/…` default instead.
 

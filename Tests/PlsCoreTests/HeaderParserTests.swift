@@ -89,6 +89,7 @@ struct HeaderParserTests {
         ("# @pls.description:", "@pls.description has no value"),
         ("# @pls.description Missing colon", "expected \"@pls.description: <value>\""),
         ("# @pls.background: yes", "@pls.background must be true or false"),
+        ("# @pls.preview: yes", "@pls.preview must be true or false"),
         ("# @pls.confirm: yes", "@pls.confirm must be true, false or <param>=<choice>,<choice>…"),
         ("# @pls.confirm: action=", "@pls.confirm must be true, false or <param>=<choice>,<choice>…"),
         (
@@ -109,6 +110,7 @@ struct HeaderParserTests {
     @Test func background() {
         #expect(HeaderParser.parse("# @pls.background: true\n", commentPrefix: "#").metadata.background)
         #expect(!HeaderParser.parse("# @pls.description: A\n", commentPrefix: "#").metadata.background)
+        #expect(HeaderParser.parse("# @pls.preview: true\n", commentPrefix: "#").metadata.preview)
     }
 
     /// The confirm line can come before the param it names.

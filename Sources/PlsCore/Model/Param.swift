@@ -10,7 +10,9 @@ public struct Param: Sendable, Equatable {
 
     /// CLI flags (`--yes`, `--dry-run`, `--help`) and names whose `PLS_<NAME>` variable pls sets itself or reads as a
     /// setting (`PLS_HOME`, `PLS_MODEL`).
-    public static let reservedNames: Set<String> = ["yes", "dry_run", "help", "id", "home", "model", "automation_dir"]
+    public static let reservedNames: Set<String> = [
+        "yes", "dry_run", "help", "id", "home", "model", "automation_dir", "preview"
+    ]
 
     public let name: String
     public let type: ParamType

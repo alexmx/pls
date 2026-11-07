@@ -63,6 +63,12 @@ public enum ManifestParser {
                     }
                     result.metadata.confirm = confirm
                     confirmNode = value
+                case "preview":
+                    guard let flag = strictBool(value) else {
+                        error("preview must be true or false", at: value)
+                        continue
+                    }
+                    result.metadata.preview = flag
                 case "background":
                     guard let flag = strictBool(value) else {
                         error("background must be true or false", at: value)

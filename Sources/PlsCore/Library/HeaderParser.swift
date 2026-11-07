@@ -74,6 +74,12 @@ public enum HeaderParser {
                 }
                 result.metadata.confirm = confirm
                 confirmLine = lineNumber
+            case "preview":
+                guard let flag = Bool(value) else {
+                    report(.error, "@pls.preview must be true or false")
+                    continue
+                }
+                result.metadata.preview = flag
             case "background":
                 guard let flag = Bool(value) else {
                     report(.error, "@pls.background must be true or false")
