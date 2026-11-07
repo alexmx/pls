@@ -134,7 +134,9 @@ for the type. Names are lowercase letters, digits and `_`, starting with a lette
 
 ## Writing for the model
 
-Routing sees one line per automation: `- <id>: <description> (e.g. "<example>", …)`. Filling then sees the
+Routing sees one line per automation: `- <id>: <description> (e.g. "<example>", …)`. In a library of more than 30
+automations it first sees only the 10 closest to the request by meaning, judged by the description and examples, so
+those also decide whether an automation is considered at all. Filling then sees the
 automation's name and description plus one line per param: `- <name> (<type>): <description> [default: <value>]`.
 That's all it knows, so:
 

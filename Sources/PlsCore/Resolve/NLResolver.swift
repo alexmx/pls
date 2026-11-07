@@ -36,7 +36,7 @@ public struct NLResolver: Sendable {
         let candidates = Self.candidates(in: library)
         guard !candidates.isEmpty else { return nil }
         return try await asking(about: candidates) {
-            guard let automation = try await route(request, among: candidates) else { return nil }
+            guard let automation = try await route(request, shortlisting: candidates) else { return nil }
             let values = automation.params.isEmpty ? [:] : try await fill(request, for: automation)
             return ParamBinder.bind(automation, request: request, values: values)
         }
@@ -48,7 +48,7 @@ public struct NLResolver: Sendable {
         let candidates = Self.candidates(in: library)
         guard !candidates.isEmpty else { return nil }
         return try await asking(about: candidates) {
-            try await route(request, among: candidates)
+            try await route(request, shortlisting: candidates)
         }
     }
 
@@ -146,6 +146,16 @@ public struct NLResolver: Sendable {
             )
         ])
         return try GenerationSchema(root: root, dependencies: [])
+    }
+
+    /// Routes over the shortlist for `request`, then over every candidate if nothing in it fits: the shortlist ranks by
+    /// meaning alone, so the right automation can fall just outside it.
+    private func route(_ request: String, shortlisting candidates: [Automation]) async throws -> Automation? {
+        let shortlist = Shortlist.candidates(for: request, among: candidates)
+        if let picked = try await route(request, among: shortlist) {
+            return picked
+        }
+        return shortlist.count < candidates.count ? try await route(request, among: candidates) : nil
     }
 
     private func route(_ request: String, among candidates: [Automation]) async throws -> Automation? {
@@ -246,6 +256,15 @@ public struct RoutingBudget: Equatable, Sendable {
     public let contextSize: Int
     /// The automations offered to the model (the ones with a description).
     public let automations: Int
+
+    /// Whether requests read a shortlist of the closest automations first (`tokens` counts them all, as the fallback
+    /// to every automation reads them).
+    public var isShortlisted: Bool {
+        automations > Shortlist.threshold
+    }
+
+    /// How many automations a shortlisted request reads first.
+    public static let shortlistSize = Shortlist.size
 
     /// What to tell the user once the routing list leaves little room for the request and the answer; nil until then.
     public var warning: String? {

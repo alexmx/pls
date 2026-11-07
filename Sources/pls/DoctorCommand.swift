@@ -100,7 +100,8 @@ struct DoctorCommand: AsyncParsableCommand {
             let percent = budget.tokens * 100 / budget.contextSize
             let count = budget.automations
             print("\nModel: available · routing uses \(budget.tokens) of \(budget.contextSize) tokens (\(percent)%) "
-                + "for \(count) automation\(count == 1 ? "" : "s")")
+                + "for \(count) automation\(count == 1 ? "" : "s")"
+                + (budget.isShortlisted ? "; requests read the \(RoutingBudget.shortlistSize) closest first" : ""))
             if let warning = budget.warning {
                 print(row(.warning, warning))
             }
