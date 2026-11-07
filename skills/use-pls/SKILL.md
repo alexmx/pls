@@ -157,7 +157,21 @@ That's all it knows, so:
   tends to make a value up. Describe each param with its unit or meaning ("How long, in minutes; 0 means until
   turned off"), since the description is how the model maps the user's words to it. Pick enum options that are
   words a user would say (`dark|light|toggle`).
-- Leave the id, name and description free of jargon the user wouldn't use.
+- **No example values in descriptions**: the model copies them into requests that don't give a value ("a voice, like
+  Samantha" made Samantha the voice of every request; "e.g. 1200 pixels" became the size). Say what a value means
+  instead, and add "only when the request names one" if the model keeps filling it.
+- **Optional choices and numbers get a default**: an optional `enum` or `int` with no default gets a value made up
+  for it anyway (`port 1` for "which ports are open?"). Give it a default that means "all" or "unchanged", like
+  `port: int(0...65535) = 0` with "0 shows every port".
+- **Default to the common action, not `toggle`**: a guessed default must not do the opposite of what was asked.
+  `mute` defaults to `mute`, so "volume 0" mutes even when the sound is already muted.
+- **Link the user's words to each choice** in the param's description: "png for screenshots, jpg for photos, heic
+  for iPhone photos" fills far better than a bare list of formats.
+- **Split an automation that does two things** (set a folder *or* a format) into two: a small model fills one
+  purpose reliably and keeps inventing values for the other.
+- Leave the id, name and description free of jargon the user wouldn't use. When a request keeps going to a
+  neighbour no matter the wording, try another id: the model favours some ids over others, and `image-resize`
+  routed where `resize-images` didn't.
 
 ## Script conventions
 
@@ -238,3 +252,6 @@ end run
 ```
 
 The first time an AppleScript controls an app, macOS asks the user for permission; mention that if it's likely.
+Inside a `tell application` block, the app's own terms are reserved: `paused` in Music doesn't compile as a variable
+name, so pick names like `stateNote`, and run `pls doctor`, which compiles every AppleScript. To fail, use `error
+"No image at /x.jpg"`: pls shows just that message.

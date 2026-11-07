@@ -27,15 +27,17 @@ Workflow: main
 - `Sources/CEditLine/`: tiny C wrapper for libedit, which the CLI's prompts read lines through
 - `Tests/PlsTests/`: tests for the CLI's own code (the zsh completion script; exit codes, error messages and
   terminal behaviour, run against the built `pls` through `BuiltPls`)
-- Child processes go through swift-subprocess, in the app and the tests, never Foundation's `Process`
 - `Tests/PlsCoreTests/`: Swift Testing; every top-level suite has `@Suite(.timeLimit(.minutes(1)))` (lint-enforced)
 - `skills/use-pls/SKILL.md`: the agent skill, embedded into `PlsCore` through the `Resources/SKILL.md` symlink
+- Background jobs (`@pls.background`, `pls jobs`): `JobStore` starts them detached in their own process group and
+  tracks them in `<state>/jobs/`
 - Collections (`pls collection`): GitHub repos with an `automations/` folder, cloned into
   `<home>/collections/<owner>/<repo>` (`CollectionStore`), loaded after your own automations by `Library`. Tests use
   local git repos as the clone source, never the network
 - `examples/home/`: sample library (each automation format, plus a Shortcut wrapper); doubles as format documentation
 
 ## Conventions
+- Child processes go through swift-subprocess, in the app and the tests, never Foundation's `Process`
 - `skills/use-pls/SKILL.md` is the guide agents write automations from (`pls skill` prints it; skill installers read
   it from the repo): update it when an automation format, param type or how values reach a script changes. Tests
   keep its examples valid, not complete.

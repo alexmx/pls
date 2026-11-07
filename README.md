@@ -49,6 +49,8 @@ pls show compress-images                    # one in detail
 pls history                                 # recent runs
 pls jobs                                    # automations running in the background; pls jobs stop <id> ends one
 pls doctor                                  # check your automations, and whether the model can be used
+pls doctor --examples kill-port             # check that the model picks it for each of its examples
+pls collection add alexmx/pls-automations   # install shared automations (see Collections)
 ```
 
 `--dry-run` shows what would run without running it, and `--yes` skips the question before a run.
@@ -77,6 +79,11 @@ echo "$pids" | xargs kill && echo "Killed $(echo "$pids" | wc -l | tr -d ' ') pr
 Params arrive as `$PLS_<NAME>` variables (and as arguments, in order). Types are `string`, `path`, `bool`, `int`,
 `number` and `enum`, with optional ranges, defaults and descriptions. An automation that needs files of its own is a
 folder with a `manifest.yaml` instead.
+
+A few more keys: `@pls.confirm: true` asks before every run (or `action=delete` only for that choice),
+`@pls.background: true` runs it as a job that `pls jobs` lists, and `@pls.preview: true` lets the script say what it
+would do (it gets `PLS_PREVIEW=1`) before you're asked and with `--dry-run`. The
+[skill](skills/use-pls/SKILL.md) describes the formats in full.
 
 [`examples/home`](examples/home/automations) has one automation in each format, including AppleScript and a Shortcut
 wrapper. Try them without touching your own library:
@@ -124,7 +131,8 @@ Then ask your agent for an automation, e.g. "add a pls automation that opens a U
 | `PLS_HOME` | Keep the library and history in this folder |
 | `PLS_MODEL=off` | Don't use the model; requests match by words |
 
-History is in `~/.local/state/pls/history.jsonl` (or `$XDG_STATE_HOME/pls`, or `$PLS_HOME`).
+History and background jobs (`jobs/`, with each job's output) are in `~/.local/state/pls/` (or
+`$XDG_STATE_HOME/pls`, or `$PLS_HOME`); collections are in `~/.config/pls/collections/`, next to your automations.
 
 ## Contributing
 
