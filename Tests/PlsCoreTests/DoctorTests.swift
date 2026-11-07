@@ -64,6 +64,30 @@ struct DoctorTests {
         #expect(Doctor.check(Library.load(home: home.url)).allSatisfy { $0.file == file && $0.severity == .warning })
     }
 
+    /// "like Samantha" became the voice for requests that named none; examples in descriptions leak into fills.
+    @Test func anExampleInADescriptionIsAWarning() throws {
+        let home = try TempHome()
+        try home.write("a.sh", """
+        #!/bin/zsh
+        # @pls.description: Resize images, e.g. to 1200 pixels
+        # @pls.param voice: string? -- A system voice, like Samantha
+        # @pls.param text: string -- The words to speak
+        """)
+        #expect(Doctor.check(Library.load(home: home.url)).map(\.message) == [
+            "description gives an example (\"e.g. to 1200\"), which the model copies into requests that don't give a value",
+            "param voice's description gives an example (\"like Samantha\"), which the model copies into requests that don't give a value"
+        ])
+    }
+
+    @Test(arguments: [
+        "Kill whatever process is listening on a TCP port",
+        "Clean likely junk",
+        "Unlike Finder, keep originals"
+    ])
+    func aDescriptionWithoutAnExampleIsFine(_ description: String) {
+        #expect(Doctor.sampleValue(in: description) == nil)
+    }
+
     /// Only shells are checked: pls can't tell what's valid for any other interpreter.
     @Test func otherInterpretersArentChecked() throws {
         let home = try TempHome()

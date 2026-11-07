@@ -15,6 +15,16 @@ public enum Doctor {
             if automation.kind == .shell, Shebang.read(automation.script) == nil {
                 warn("has no shebang, so it runs with /bin/zsh", file: automation.script)
             }
+            // The model copies example values from descriptions into requests that don't give a value.
+            let described = [("description", automation.description)]
+                + automation.params.map { ("param \($0.name)'s description", $0.description) }
+            for case let (whose, text?) in described {
+                if let example = sampleValue(in: text) {
+                    warn(
+                        "\(whose) gives an example (\"\(example)\"), which the model copies into requests that don't give a value"
+                    )
+                }
+            }
             // The model fills optional choices and numbers even when a request doesn't mention them; a default gives
             // it the value to leave alone.
             for param in automation.params where param.requirement == .optional && param.type.isChoiceOrNumber {
@@ -36,6 +46,11 @@ public enum Doctor {
             found.withLock { $0[index] = problem }
         }
         return found.withLock { $0.compactMap(\.self) }
+    }
+
+    /// "e.g. ~/Pictures/beach.jpg", "like Samantha": an example in a description, with the words after it.
+    static func sampleValue(in description: String) -> String? {
+        description.firstMatch(of: /(?i)\b(?:e\.g\.|for example|such as|like\b) +\S+(?: \S+)?/).map { String($0.0) }
     }
 
     /// An error if the script doesn't compile or parse, so it couldn't run: AppleScript through `osacompile`, a zsh,
