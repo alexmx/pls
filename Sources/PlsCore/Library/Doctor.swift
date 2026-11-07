@@ -15,6 +15,14 @@ public enum Doctor {
             if automation.kind == .shell, Shebang.read(automation.script) == nil {
                 warn("has no shebang, so it runs with /bin/zsh", file: automation.script)
             }
+            // The model fills optional choices and numbers even when a request doesn't mention them; a default gives
+            // it the value to leave alone.
+            for param in automation.params where param.requirement == .optional && param.type.isChoiceOrNumber {
+                warn("""
+                param \(param.name) is optional with no default, so the model tends to fill one in anyway; give it a \
+                default instead (e.g. 0 or a choice meaning "unchanged")
+                """)
+            }
         }
         return found + syntaxProblems(library.automations)
     }
@@ -104,5 +112,14 @@ public enum Doctor {
             }
         }
         return found
+    }
+}
+
+private extension ParamType {
+    var isChoiceOrNumber: Bool {
+        switch self {
+        case .enum, .int, .number: true
+        case .string, .path, .bool: false
+        }
     }
 }

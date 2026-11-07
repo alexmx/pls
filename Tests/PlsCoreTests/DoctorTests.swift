@@ -45,6 +45,25 @@ struct DoctorTests {
         #expect(problems == [Diagnostic(.error, message, file: file, line: line, automation: id)])
     }
 
+    /// The model fills an optional choice or number even when the request doesn't say; text and paths are fine.
+    @Test func anOptionalChoiceOrNumberWithoutDefaultIsAWarning() throws {
+        let home = try TempHome()
+        let file = try home.write("a.sh", """
+        #!/bin/zsh
+        # @pls.description: A
+        # @pls.param port: int(1...65535)?
+        # @pls.param format: enum(png|jpg)?
+        # @pls.param size: int = 0
+        # @pls.param label: string?
+        # @pls.param folder: path?
+        """)
+        let messages = Doctor.check(Library.load(home: home.url)).map(\.message)
+        #expect(messages.count == 2)
+        #expect(messages.allSatisfy { $0.contains("optional with no default") })
+        #expect(messages.first?.hasPrefix("param port ") == true)
+        #expect(Doctor.check(Library.load(home: home.url)).allSatisfy { $0.file == file && $0.severity == .warning })
+    }
+
     /// Only shells are checked: pls can't tell what's valid for any other interpreter.
     @Test func otherInterpretersArentChecked() throws {
         let home = try TempHome()
