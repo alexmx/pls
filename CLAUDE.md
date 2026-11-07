@@ -24,3 +24,5 @@ Workflow: main
 - `poc/`: throwaway proof of concept for the model (own package, excluded from format/lint); results in `poc/results/`
 
 ## Conventions
+- `pls skill` prints `Sources/PlsCore/AgentSkill.swift`, the guide agents write automations from: update it when an
+  automation format, param type or how values reach a script changes. Tests keep its examples valid, not complete.

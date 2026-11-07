@@ -15,22 +15,18 @@ struct AgentSkillTests {
         #expect(!description.isEmpty && description.count <= 1024)
     }
 
-    @Test func listsTheReservedParamNames() {
-        for name in Param.reservedNames {
-            #expect(AgentSkill.markdown.contains("`\(name)`"))
-        }
-    }
-
-    /// Every example is a valid automation: written into a library, each one loads and doctor finds nothing.
-    @Test func examplesAreAutomationsWithoutProblems() throws {
+    /// Every example is a valid automation: written into a library, each one loads, doctor finds nothing, and its
+    /// script parses.
+    @Test func examplesAreValidAutomations() throws {
         let blocks = Self.codeBlocks()
         try #require(blocks.count == 4)
 
         let home = try TempHome()
+        var scripts: [URL] = []
         for (index, block) in blocks.enumerated() {
             switch block.language {
-            case "zsh": try home.write("example-\(index).sh", block.code)
-            case "applescript": try home.write("example-\(index).applescript", block.code)
+            case "zsh": try scripts.append(home.write("example-\(index).sh", block.code))
+            case "applescript": try scripts.append(home.write("example-\(index).applescript", block.code))
             case "yaml":
                 // A manifest's first line names its folder, `# compress-images/manifest.yaml`; its entry gets a stub.
                 let folder = try #require(block.code.firstMatch(of: /^# (\S+)\/manifest\.yaml\n/)?.1)
@@ -44,28 +40,21 @@ struct AgentSkillTests {
         let library = Library.load(home: home.url)
         #expect(library.automations.count == blocks.count)
         #expect(Doctor.check(library) == [])
+        for script in scripts {
+            #expect(try Self.parses(script), "\(script.lastPathComponent) doesn't parse")
+        }
     }
 
-    /// The example scripts parse: `zsh -n` for shell, `osacompile` for AppleScript.
-    @Test func exampleScriptsParse() throws {
-        let scripts = Self.codeBlocks().filter { $0.language != "yaml" }
-        try #require(!scripts.isEmpty)
-        let folder = FileManager.default.temporaryDirectory.appending(path: "pls-skill-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: folder) }
-
-        for (index, script) in scripts.enumerated() {
-            let isAppleScript = script.language == "applescript"
-            let file = folder.appending(path: "example-\(index).\(isAppleScript ? "applescript" : "sh")")
-            try script.code.write(to: file, atomically: true, encoding: .utf8)
-            let process = Process()
-            process.executableURL = URL(filePath: isAppleScript ? "/usr/bin/osacompile" : "/bin/zsh")
-            process.arguments = isAppleScript ? ["-o", "/dev/null", file.path] : ["-n", file.path]
-            process.standardError = FileHandle.nullDevice
-            try process.run()
-            process.waitUntilExit()
-            #expect(process.terminationStatus == 0, "example \(index) (\(script.language)) doesn't parse")
-        }
+    /// Whether `file` parses: `zsh -n` for shell, `osacompile` for AppleScript.
+    private static func parses(_ file: URL) throws -> Bool {
+        let isAppleScript = file.pathExtension == "applescript"
+        let process = Process()
+        process.executableURL = URL(filePath: isAppleScript ? "/usr/bin/osacompile" : "/bin/zsh")
+        process.arguments = isAppleScript ? ["-o", "/dev/null", file.path] : ["-n", file.path]
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        return process.terminationStatus == 0
     }
 
     /// The fenced code blocks, in order.
