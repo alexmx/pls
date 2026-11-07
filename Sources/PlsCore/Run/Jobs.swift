@@ -80,8 +80,7 @@ public struct JobStore: Sendable {
                         invocation.executable.path
                     ] + invocation.arguments
                 ),
-                environment: .custom(Dictionary(uniqueKeysWithValues: invocation.environment(inheriting: environment)
-                        .compactMap { key, value in Environment.Key(rawValue: key).map { ($0, value) } })),
+                environment: .exactly(invocation.environment(inheriting: environment)),
                 output: .string(limit: 64),
                 error: .discarded
             ).standardOutput

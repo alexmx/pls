@@ -71,6 +71,16 @@ public struct Library: Sendable {
         )
     }
 
+    /// An automation's id: its file's name without the extension, or its folder's name.
+    static func id(of entry: URL) -> String {
+        isDirectory(entry) ? entry.lastPathComponent : entry.deletingPathExtension().lastPathComponent
+    }
+
+    static func isDirectory(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
+    }
+
     private static func automationsDirectory(in home: URL) -> URL {
         home.appending(path: "automations", directoryHint: .isDirectory)
     }
@@ -112,7 +122,7 @@ private struct Loader {
     }
 
     mutating func load(_ url: URL) {
-        if isDirectory(url) {
+        if Library.isDirectory(url) {
             loadFolder(url)
         } else {
             loadFile(url)
@@ -120,7 +130,7 @@ private struct Loader {
     }
 
     mutating func loadFile(_ url: URL) {
-        let id = url.deletingPathExtension().lastPathComponent
+        let id = Library.id(of: url)
         let kind: AutomationKind
         switch url.pathExtension {
         case "scpt":
@@ -142,7 +152,7 @@ private struct Loader {
     }
 
     mutating func loadFolder(_ folder: URL) {
-        let id = folder.lastPathComponent
+        let id = Library.id(of: folder)
         let manifestURL = folder.appending(path: "manifest.yaml")
         guard let text = try? String(contentsOf: manifestURL, encoding: .utf8) else {
             if FileManager.default.fileExists(atPath: manifestURL.path) {
@@ -160,7 +170,7 @@ private struct Loader {
             return
         }
         let entry = folder.appending(path: entryName)
-        if !FileManager.default.fileExists(atPath: entry.path) || isDirectory(entry) {
+        if !FileManager.default.fileExists(atPath: entry.path) || Library.isDirectory(entry) {
             parsed.diagnostics.append(Diagnostic(.error, "entry file \(entryName) doesn't exist"))
         }
         let kind = parsed.kind ?? (["applescript", "scpt"].contains(entry.pathExtension) ? .applescript : .shell)
@@ -202,10 +212,5 @@ private struct Loader {
 
     mutating func error(_ message: String, _ file: URL, _ id: String) {
         diagnostics.append(Diagnostic(.error, message, file: file, automation: id))
-    }
-
-    func isDirectory(_ url: URL) -> Bool {
-        var isDirectory: ObjCBool = false
-        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 }

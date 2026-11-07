@@ -12,8 +12,9 @@ struct RunOptions: ParsableArguments {
     var dryRun = false
 }
 
-/// What `pls run`, `pls again` and requests share once they have a binding: ask for what's missing, confirm if
-/// the automation or the trigger wants it, then either preview (--dry-run) or run it (which records it in history).
+/// What `pls run`, `pls again` and requests share once they have a binding: ask for what's missing, confirm if the
+/// automation or the trigger wants it, then show a dry run, start it in the background, or run it in the terminal
+/// (the last two record it in history).
 @MainActor
 func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: RunOptions) async throws {
     let (yes, dryRun) = (options.yes, options.dryRun)
@@ -57,40 +58,50 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
     if !dryRun {
         try Prompt.fillMissing(&binding)
     }
-    // An automation that supports it says what it would do (`@pls.preview`); only complete values can be previewed.
-    func preview(_ binding: Binding) async -> [String] {
-        guard automation.preview, binding.missing.isEmpty else { return [] }
-        do {
-            let (status, output) = try await Runner.preview(binding)
-            return previewLines(status: status, output: output)
-        } catch {
-            return ["", "  preview: \(error)"]
-        }
-    }
     if asksFirst(binding) {
-        guard try await Prompt.review(&binding, preview: preview) else { throw Exit.cancelled }
+        guard try await Prompt.review(&binding, preview: previewOutput) else { throw Exit.cancelled }
     }
 
     if dryRun {
-        // A preview never asks: show what's missing instead of the command it can't complete yet.
-        planLines(binding).forEach { print($0) }
-        if binding.missing.isEmpty {
-            invocationLines(Invocation(binding)).forEach { print($0) }
-            if automation.background {
-                print("  runs in the background")
-            }
-            await preview(binding).forEach { print($0) }
-        } else {
-            print("\n  pls would ask for \(binding.missing.map(\.name).joined(separator: ", ")) first.")
-        }
-        return
-    }
-
-    if automation.background {
+        await showDryRun(binding)
+    } else if automation.background {
         try await start(binding, via: trigger)
+    } else {
+        try await runInTerminal(binding, via: trigger)
+    }
+}
+
+/// `--dry-run`: the plan, and with complete values the command, how it runs and its preview. It never asks, so it
+/// shows what's missing instead of the command it can't complete yet.
+@MainActor
+private func showDryRun(_ binding: Binding) async {
+    planLines(binding).forEach { print($0) }
+    guard binding.missing.isEmpty else {
+        print("\n  pls would ask for \(binding.missing.map(\.name).joined(separator: ", ")) first.")
         return
     }
+    invocationLines(Invocation(binding)).forEach { print($0) }
+    if binding.automation.background {
+        print("  runs in the background")
+    }
+    await previewOutput(binding).forEach { print($0) }
+}
 
+/// What an automation that supports it says it would do (`@pls.preview`); only complete values can be previewed.
+@MainActor
+private func previewOutput(_ binding: Binding) async -> [String] {
+    guard binding.automation.preview, binding.missing.isEmpty else { return [] }
+    do {
+        let (status, output) = try await Runner.preview(binding)
+        return previewLines(status: status, output: output)
+    } catch {
+        return ["", "  preview: \(error)"]
+    }
+}
+
+/// Runs the script with the terminal, recording it in history, and exits with its status.
+@MainActor
+private func runInTerminal(_ binding: Binding, via trigger: HistoryEntry.Trigger) async throws {
     // From here the script owns the terminal: Ctrl-C goes to it (Runner resets it to the default there), and pls
     // ignores it so it can wait and exit with the script's status. Prompts above still quit on Ctrl-C.
     signal(SIGINT, SIG_IGN)

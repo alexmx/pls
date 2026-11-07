@@ -20,14 +20,22 @@ struct JobsTests {
         return try Invocation(ParamBinder.bind(#require(library.automation(id: id)), arguments: []))
     }
 
+    /// Whether `job` stops within a few seconds: a signalled process takes a moment to go.
+    private func stopped(_ job: JobStore.Job) async -> Bool {
+        let deadline = ContinuousClock.now + .seconds(5)
+        while job.isRunning, ContinuousClock.now < deadline {
+            await Task.yield()
+        }
+        return !job.isRunning
+    }
+
     @Test func aJobRunsDetachedUntilStopped() async throws {
         let (job, output) = try await jobs.start(invocation("waits"), id: "waits")
         defer { jobs.stop("waits") }
         #expect(output == "started \(job.pid)")
         #expect(jobs.running() == [job])
         #expect(jobs.stop("waits"))
-        try await Task.sleep(for: .milliseconds(200))
-        #expect(!job.isRunning)
+        #expect(await stopped(job))
         #expect(jobs.running().isEmpty)
         // The job's sleep went with it.
         #expect(kill(-job.pid, 0) != 0)
@@ -37,16 +45,14 @@ struct JobsTests {
         let first = try await jobs.start(invocation("waits"), id: "waits").job
         let second = try await jobs.start(invocation("waits"), id: "waits").job
         defer { jobs.stop("waits") }
-        try await Task.sleep(for: .milliseconds(200))
-        #expect(!first.isRunning)
+        #expect(await stopped(first))
         #expect(jobs.running() == [second])
     }
 
     @Test func aJobThatEndsIsNoLongerListed() async throws {
         let (job, output) = try await jobs.start(invocation("quick"), id: "quick")
         #expect(output == "done")
-        try await Task.sleep(for: .milliseconds(200))
-        #expect(!job.isRunning)
+        #expect(await stopped(job))
         #expect(jobs.running().isEmpty)
         #expect(!jobs.stop("quick"))
     }

@@ -191,12 +191,12 @@ public struct CollectionStore: Sendable {
 
     // MARK: helpers
 
-    /// The ids in a collection's `automations/`, as the library loads them: file names without their extension, and
-    /// folder names. Hidden entries don't count.
+    /// The ids in a collection's `automations/`, by the library's own rule. Hidden entries don't count.
     static func ids(in folder: URL) -> [String] {
-        let automations = folder.appending(path: "automations")
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: automations.path)) ?? []
-        return names.filter { !$0.hasPrefix(".") }.map { ($0 as NSString).deletingPathExtension }.sorted()
+        let entries = (try? FileManager.default.contentsOfDirectory(
+            at: folder.appending(path: "automations"), includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+        )) ?? []
+        return entries.map(Library.id(of:)).sorted()
     }
 
     /// `automations/kill-port.sh` → `kill-port`; `automations/compress/run.sh` → `compress`.

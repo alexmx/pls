@@ -1,4 +1,5 @@
 import Foundation
+@testable import PlsCore
 import Subprocess
 import System
 
@@ -49,7 +50,7 @@ final class BuiltPls {
             error: .string(limit: 1 << 20)
         )
         return Result(
-            status: result.terminationStatus.code,
+            status: result.terminationStatus.shellCode,
             stdout: result.standardOutput,
             stderr: result.standardError
         )
@@ -83,7 +84,7 @@ final class BuiltPls {
             }
             return shown
         }
-        return (result.terminationStatus.code, result.closureResult)
+        return (result.terminationStatus.shellCode, result.closureResult)
     }
 
     /// The test process's environment without any PLS_ settings, plus this library and the model turned off.
@@ -91,18 +92,6 @@ final class BuiltPls {
         var variables = ProcessInfo.processInfo.environment.filter { !$0.key.hasPrefix("PLS_") }
         variables["PLS_HOME"] = home.path
         variables["PLS_MODEL"] = "off"
-        return .custom(Dictionary(uniqueKeysWithValues: variables.compactMap { key, value in
-            Environment.Key(rawValue: key).map { ($0, value) }
-        }))
-    }
-}
-
-extension TerminationStatus {
-    /// The exit code, or 128 + the signal number if a signal ended it, as shells report it.
-    var code: Int32 {
-        switch self {
-        case let .exited(code): code
-        case let .signaled(signal): 128 + signal
-        }
+        return .exactly(variables)
     }
 }

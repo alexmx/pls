@@ -149,17 +149,14 @@ public struct NLResolver: Sendable {
     }
 
     /// Routes over the shortlist for `request`, then over the wider fallback if nothing in it fits: the shortlist ranks
-    /// by meaning alone, so the right automation can fall just outside it.
+    /// by meaning alone, so the right automation can fall just outside it. Both come from one ranking.
     private func route(_ request: String, shortlisting candidates: [Automation]) async throws -> Automation? {
-        let shortlist = Shortlist.candidates(for: request, among: candidates)
-        if let picked = try await route(request, among: shortlist) {
+        guard candidates.count > Shortlist.threshold, let ranking = Shortlist.ranking(for: request, among: candidates)
+        else { return try await route(request, among: candidates) }
+        if let picked = try await route(request, among: ranking.closest(Shortlist.size)) {
             return picked
         }
-        guard shortlist.count < candidates.count else { return nil }
-        return try await route(
-            request,
-            among: Shortlist.closest(Shortlist.fallbackSize, to: request, among: candidates)
-        )
+        return try await route(request, among: ranking.closest(Shortlist.fallbackSize))
     }
 
     private func route(_ request: String, among candidates: [Automation]) async throws -> Automation? {

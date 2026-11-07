@@ -41,9 +41,7 @@ public enum Runner {
         let configuration = Configuration(
             executable: .path(FilePath(path)),
             arguments: Arguments(invocation.arguments),
-            environment: .custom(Dictionary(uniqueKeysWithValues: variables.compactMap { key, value in
-                Environment.Key(rawValue: key).map { ($0, value) }
-            })),
+            environment: .exactly(variables),
             platformOptions: options
         )
         let status: TerminationStatus
@@ -69,10 +67,7 @@ public enum Runner {
         } catch {
             throw LaunchError(description: "couldn't start \(path): \(error)")
         }
-        return switch status {
-        case let .exited(code): code
-        case let .signaled(signal): 128 + signal
-        }
+        return status.shellCode
     }
 
     /// What a preview run of `binding` prints (`Automation.preview`), output and errors together, with its exit status.
@@ -85,17 +80,12 @@ public enum Runner {
             let result = try await Subprocess.run(
                 .path(FilePath(invocation.executable.path)),
                 arguments: Arguments(invocation.arguments),
-                environment: .custom(Dictionary(uniqueKeysWithValues: invocation.environment(inheriting: environment)
-                        .compactMap { key, value in Environment.Key(rawValue: key).map { ($0, value) } })),
+                environment: .exactly(invocation.environment(inheriting: environment)),
                 input: .none,
                 output: .string(limit: 1 << 16),
                 error: .combinedWithOutput
             )
-            let status: Int32 = switch result.terminationStatus {
-            case let .exited(code): code
-            case let .signaled(signal): 128 + signal
-            }
-            return (status, result.standardOutput.trimmingCharacters(in: .newlines))
+            return (result.terminationStatus.shellCode, result.standardOutput.trimmingCharacters(in: .newlines))
         } catch {
             throw LaunchError(description: "couldn't preview \(invocation.executable.path): \(error)")
         }

@@ -12,28 +12,42 @@ public enum Shortlist {
     /// the model's context however big the library gets (all of them took about 57 tokens each).
     public static let fallbackSize = 40
 
-    /// The `size` automations whose description or examples are closest to `request` (see `closest`), or all of them
-    /// when there are `threshold` or fewer. The sentence embedding is English only.
+    /// The `size` automations closest to `request` (see `ranking`), in their original order; all of them when there are
+    /// `threshold` or fewer, or the request can't be ranked. The sentence embedding is English only.
     static func candidates(for request: String, among automations: [Automation]) -> [Automation] {
-        automations.count > threshold ? closest(size, to: request, among: automations) : automations
+        guard automations.count > threshold, let ranking = ranking(for: request, among: automations) else {
+            return automations
+        }
+        return ranking.closest(size)
     }
 
-    /// The `count` automations closest to `request`, in their original order; all of them when there are no more, or
-    /// when the request is clearly in another language, or the embedding isn't available.
-    static func closest(_ count: Int, to request: String, among automations: [Automation]) -> [Automation] {
-        guard automations.count > count,
-              !isClearlyNotEnglish(request),
+    /// Automations ranked by how close their description or examples are to a request.
+    struct Ranking {
+        let automations: [Automation]
+        /// Indices into `automations`, closest first.
+        let order: [Int]
+
+        /// The `count` closest, in their original order.
+        func closest(_ count: Int) -> [Automation] {
+            let kept = Set(order.prefix(count))
+            return automations.indices.filter(kept.contains).map { automations[$0] }
+        }
+    }
+
+    /// `automations` ranked against `request`, computing each one's embeddings once; nil when the request is clearly
+    /// in another language or the embedding isn't available.
+    static func ranking(for request: String, among automations: [Automation]) -> Ranking? {
+        guard !isClearlyNotEnglish(request),
               let embedding = NLEmbedding.sentenceEmbedding(for: .english),
               let wanted = embedding.vector(for: request)
-        else { return automations }
+        else { return nil }
         let distances = automations.map { automation in
             ([automation.description ?? ""] + automation.examples)
                 .compactMap { embedding.vector(for: $0) }
                 .map { cosineDistance(wanted, $0) }
                 .min() ?? .infinity
         }
-        let kept = Set(automations.indices.sorted { distances[$0] < distances[$1] }.prefix(count))
-        return automations.indices.filter(kept.contains).map { automations[$0] }
+        return Ranking(automations: automations, order: automations.indices.sorted { distances[$0] < distances[$1] })
     }
 
     /// Short requests are often misread ("show open PRs" as Indonesian, "toggle mute" as Turkish) but with little
