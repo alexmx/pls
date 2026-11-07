@@ -12,7 +12,9 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.8.0")
     ],
     targets: [
-        .target(name: "PlsCore", dependencies: ["Yams"]),
+        // Embeds the skill `pls skill` prints. Resources/SKILL.md links to skills/pls/SKILL.md, where skill
+        // installers find it.
+        .target(name: "PlsCore", dependencies: ["Yams"], resources: [.embedInCode("Resources/SKILL.md")]),
         // Line editing for prompts: libedit ships with macOS.
         .target(name: "CEditLine", linkerSettings: [.linkedLibrary("edit")]),
         .executableTarget(

@@ -15,6 +15,12 @@ struct AgentSkillTests {
         #expect(!description.isEmpty && description.count <= 1024)
     }
 
+    /// The skill is a plain file, so nothing else keeps its list in step with the parsers'.
+    @Test func listsTheReservedParamNames() {
+        let list = Param.reservedNames.sorted().map { "`\($0)`" }.joined(separator: ", ")
+        #expect(AgentSkill.markdown.contains("reserved:\n\(list)."))
+    }
+
     /// Every example is a valid automation: written into a library, each one loads, doctor finds nothing, and its
     /// script parses.
     @Test func examplesAreValidAutomations() throws {

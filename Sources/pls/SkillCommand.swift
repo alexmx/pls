@@ -15,6 +15,6 @@ struct SkillCommand: ParsableCommand {
     )
 
     func run() {
-        print(AgentSkill.markdown)
+        print(AgentSkill.markdown, terminator: "")
     }
 }

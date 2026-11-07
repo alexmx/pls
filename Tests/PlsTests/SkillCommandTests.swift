@@ -16,6 +16,6 @@ struct SkillCommandTests {
         process.waitUntilExit()
 
         #expect(process.terminationStatus == 0)
-        #expect(String(decoding: output, as: UTF8.self) == AgentSkill.markdown + "\n")
+        #expect(String(decoding: output, as: UTF8.self) == AgentSkill.markdown)
     }
 }
