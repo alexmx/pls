@@ -15,7 +15,7 @@ struct CompletionCommand: ParsableCommand {
         commandName: "completion",
         abstract: "Print the shell completion script.",
         discussion: """
-        Tab then completes commands, automation ids, and a run's param names and choices. Add this to ~/.zshrc, \
+        Tab then completes commands, automation ids, and a run's param names, choices and paths. Add this to ~/.zshrc, \
         after compinit:
         
           source <(pls completion zsh)
@@ -26,6 +26,20 @@ struct CompletionCommand: ParsableCommand {
     var shell: Shell
 
     func run() {
-        print(PlsCommand.completionScript(for: shell.completionShell))
+        let script = PlsCommand.completionScript(for: shell.completionShell)
+        print(Self.withFileCompletion(script) ?? script)
+    }
+
+    /// What a custom completion prints to have zsh complete files instead. Completer escapes a leading colon in its
+    /// suggestions, so none of them can be this.
+    static let filesMarker = ":files"
+
+    /// ArgumentParser's zsh script with a line that hands the marker over to `_files`, zsh's own file completion
+    /// (custom completions can only list words). Nil if the line its custom completions are read in has changed.
+    static func withFileCompletion(_ script: String) -> String? {
+        let readCompletions = #"completions=("${(@f)"$("${command_name}" "${@}" "${command_line[@]}")"}")"#
+        guard let range = script.range(of: readCompletions) else { return nil }
+        let handOver = #"if [[ "${completions[1]}" == '\#(filesMarker)' ]]; then _files; return; fi"#
+        return script.replacingCharacters(in: range, with: "\(readCompletions)\n    \(handOver)")
     }
 }

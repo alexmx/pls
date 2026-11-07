@@ -18,6 +18,7 @@ Workflow: main
 - `Sources/pls/`: the CLI
 - `Evals/`: eval library, cases and runner for the model (`xc evals`)
 - `Sources/CEditLine/`: tiny C wrapper for libedit, which the CLI's prompts read lines through
+- `Tests/PlsTests/`: tests for the CLI's own code (the zsh completion script)
 - `Tests/PlsCoreTests/`: Swift Testing; every top-level suite has `@Suite(.timeLimit(.minutes(1)))` (lint-enforced)
 - `examples/home/`: sample library (each automation format, plus a Shortcut wrapper); doubles as format documentation
 - `poc/`: throwaway proof of concept for the model (own package, excluded from format/lint); results in `poc/results/`

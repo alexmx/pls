@@ -258,7 +258,8 @@ While the model works, a terminal shows `Thinking…` on stderr; it's erased bef
 **Completion:** `pls completion zsh` prints a zsh script; `source <(pls completion zsh)` in `~/.zshrc`, after
 `compinit`, loads it. Tab completes commands and flags, automation ids (with their descriptions) after `run` and
 `show`, and for `pls run <id>` the param names not given yet (`--older-than-days`, `--no-<bool>`) and the choices of
-enum and bool params, positional or after `--<name>`. Other values don't complete.
+enum and bool params, positional or after `--<name>`. Path values complete with zsh's own file completion; other
+values don't complete.
 
 **Exit codes:** the script's own code when it ran (128 + signal if killed); `64` usage or validation error; `65`
 unknown id or no NL match; `69` model unavailable and no fallback chosen; `1` the model couldn't answer a request

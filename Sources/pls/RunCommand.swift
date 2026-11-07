@@ -25,7 +25,10 @@ struct RunCommand: ParsableCommand {
     var values: [String] = []
 
     private static let runCompletion = CompletionKind.custom { words, current, _ in
-        Completer.runArguments(words, current: current, library: .loadDefault())
+        switch Completer.runArguments(words, current: current, library: .loadDefault()) {
+        case let .suggestions(suggestions): suggestions
+        case .files: [CompletionCommand.filesMarker]
+        }
     }
 
     func run() throws {
