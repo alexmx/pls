@@ -15,6 +15,43 @@ struct DoctorTests {
         #expect(Doctor.check(Library.load(home: home.url)).isEmpty)
     }
 
+    /// A script that couldn't run is an error at the line its compiler or shell names.
+    @Test(arguments: [
+        (
+            "a.applescript",
+            "-- @pls.description: A\non run\n\tset x to\nend run\n",
+            3,
+            "doesn't compile: Expected expression but found end of line."
+        ),
+        (
+            "b.sh",
+            "#!/bin/zsh\n# @pls.description: B\nif true; then\n  echo hi\n",
+            5,
+            "doesn't parse: parse error near `\\n'"
+        ),
+        (
+            "c.sh",
+            "#!/usr/bin/env bash\n# @pls.description: C\necho hi )\n",
+            3,
+            "doesn't parse: syntax error near unexpected token `)'"
+        ),
+        ("d.sh", "# @pls.description: D\nfor x in; do\n", 3, "doesn't parse: parse error near `\\n'")
+    ])
+    func aScriptThatDoesntParseIsAnError(file name: String, content: String, line: Int, message: String) throws {
+        let home = try TempHome()
+        let file = try home.write(name, content)
+        let id = (name as NSString).deletingPathExtension
+        let problems = Doctor.check(Library.load(home: home.url)).filter { $0.severity == .error }
+        #expect(problems == [Diagnostic(.error, message, file: file, line: line, automation: id)])
+    }
+
+    /// Only shells are checked: pls can't tell what's valid for any other interpreter.
+    @Test func otherInterpretersArentChecked() throws {
+        let home = try TempHome()
+        try home.write("a.py", "#!/usr/bin/env python3\n# @pls.description: A\nthis is not ( python\n")
+        #expect(Doctor.check(Library.load(home: home.url)).isEmpty)
+    }
+
     @Test func includesLoadingProblems() throws {
         let home = try TempHome()
         try home.write("bad.sh", "# @pls.param x: nope\n")
