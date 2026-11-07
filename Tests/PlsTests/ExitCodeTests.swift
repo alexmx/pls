@@ -68,7 +68,7 @@ struct ExitCodeTests {
 
     // MARK: Running pls
 
-    private struct Result {
+    private struct Exited {
         let status: Int32
         let stderr: String
     }
@@ -78,12 +78,12 @@ struct ExitCodeTests {
         Bundle(for: ThrowawayHome.self).bundleURL.deletingLastPathComponent().appending(path: "pls")
     }
 
-    private func pls(_ arguments: String...) throws -> Result {
+    private func pls(_ arguments: String...) throws -> Exited {
         try pls(arguments)
     }
 
     /// Runs pls with no terminal: stdin is empty, stderr is captured.
-    private func pls(_ arguments: [String]) throws -> Result {
+    private func pls(_ arguments: [String]) throws -> Exited {
         let process = try makeProcess(arguments)
         let stderr = Pipe()
         process.standardInput = FileHandle.nullDevice
@@ -92,7 +92,7 @@ struct ExitCodeTests {
         try process.run()
         let output = stderr.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        return Result(status: process.terminationStatus, stderr: String(decoding: output, as: UTF8.self))
+        return Exited(status: process.terminationStatus, stderr: String(decoding: output, as: UTF8.self))
     }
 
     /// Runs pls in a pseudo-terminal and types `answer` once `prompt` appears; returns the exit status.
@@ -109,30 +109,34 @@ struct ExitCodeTests {
         try process.run()
         close(secondary)
 
-        try #require(read(primary, until: prompt), "pls never asked \(prompt)")
+        try #require(wait(for: prompt, on: primary), "pls never asked \(prompt)")
         _ = (answer + "\n").withCString { write(primary, $0, strlen($0)) }
         // Drain the terminal so pls can't block writing to it.
-        while read(primary, until: nil) {}
+        while nextOutput(on: primary) != nil {}
         process.waitUntilExit()
         return process.terminationStatus
     }
 
-    /// Reads the terminal until `text` has appeared (true), or until it closes or stays quiet for 10s (false). With
-    /// `text` nil, reads one chunk.
-    private func read(_ descriptor: Int32, until text: String?) -> Bool {
+    /// Waits until `text` has appeared on the terminal; false if it closes or stays quiet for 10s first.
+    private func wait(for text: String, on terminal: Int32) -> Bool {
         var seen = ""
-        var buffer = [UInt8](repeating: 0, count: 1024)
-        while true {
-            var request = pollfd(fd: descriptor, events: Int16(POLLIN), revents: 0)
-            guard poll(&request, 1, 10000) > 0 else { return false }
-            let count = Darwin.read(descriptor, &buffer, buffer.count)
-            guard count > 0 else { return false }
-            guard let text else { return true }
-            seen += String(decoding: buffer[..<count], as: UTF8.self)
+        while let output = nextOutput(on: terminal) {
+            seen += output
             if seen.contains(text) {
                 return true
             }
         }
+        return false
+    }
+
+    /// The terminal's next output; nil once it closes or stays quiet for 10s.
+    private func nextOutput(on terminal: Int32) -> String? {
+        var request = pollfd(fd: terminal, events: Int16(POLLIN), revents: 0)
+        guard poll(&request, 1, 10000) > 0 else { return nil }
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        let count = read(terminal, &buffer, buffer.count)
+        guard count > 0 else { return nil }
+        return String(decoding: buffer[..<count], as: UTF8.self)
     }
 
     private func makeProcess(_ arguments: [String]) throws -> Process {
