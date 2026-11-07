@@ -22,7 +22,6 @@ Workflow: main
 - `Tests/PlsCoreTests/`: Swift Testing; every top-level suite has `@Suite(.timeLimit(.minutes(1)))` (lint-enforced)
 - `skills/use-pls/SKILL.md`: the agent skill, embedded into `PlsCore` through the `Resources/SKILL.md` symlink
 - `examples/home/`: sample library (each automation format, plus a Shortcut wrapper); doubles as format documentation
-- `poc/`: throwaway proof of concept for the model (own package, excluded from format/lint); results in `poc/results/`
 
 ## Conventions
 - `skills/use-pls/SKILL.md` is the guide agents write automations from (`pls skill` prints it; skill installers read

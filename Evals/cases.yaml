@@ -1,4 +1,5 @@
-# Requests for `xc evals`, resolved against Evals/library. Ported from poc/evals.json.
+# Requests for `xc evals`, resolved against Evals/library. Ported from the proof of concept's evals.json
+# (commit 365465e).
 #
 # expect: the automation id the request should pick, or none.
 # values: every value the request states or clearly implies. Matching ignores case, surrounding quotes and spaces,

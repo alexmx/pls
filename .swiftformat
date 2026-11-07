@@ -13,5 +13,5 @@
 --ifdef no-indent
 --test-case-name-format standard-identifiers
 
-# poc/ is the throwaway proof of concept; .build holds fetched dependencies.
---exclude .build,poc
+# .build holds fetched dependencies.
+--exclude .build
