@@ -34,7 +34,7 @@ public enum Completer {
         let end = typed.firstIndex(of: "--") ?? typed.endIndex
         let parsed = ParamBinder.parse(typed[..<end].filter { !runFlags.contains($0) } + typed[end...], for: automation)
         if let param = parsed.awaitingValue {
-            return values(of: param)
+            return completion(of: param)
         }
         // Positional values fill the params not named, in declared order.
         let named = Set(parsed.named.compactMap(\.param?.name))
@@ -42,7 +42,7 @@ public enum Completer {
         if !parsed.onlyPositional, word.hasPrefix("-") {
             return .suggestions(open.flatMap(flags))
         }
-        return open.first.map { values(of: $0) } ?? .suggestions([])
+        return open.first.map(completion) ?? .suggestions([])
     }
 
     /// `--name`, plus `--no-name` for a bool; dashes stand for underscores, as on the command line.
@@ -53,7 +53,7 @@ public enum Completer {
         return flags.map { suggestion($0, description) }
     }
 
-    private static func values(of param: Param) -> Completion {
+    private static func completion(of param: Param) -> Completion {
         switch param.type {
         case let .enum(options): .suggestions(options.map { suggestion($0, nil) })
         case .bool: .suggestions(["true", "false"])
