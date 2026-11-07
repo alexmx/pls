@@ -36,6 +36,18 @@ struct ExitCodeTests {
         #expect(try pls(arguments).status == 64)
     }
 
+    /// ArgumentParser's errors read like pls's own: `pls: <message>`, then the usage.
+    @Test(arguments: [
+        (["run"], "pls: missing expected argument '<id>'\n"),
+        (["history", "-n", "0"], "pls: --limit must be at least 1\n"),
+        (["run", "--bogus", "x"], "pls: unknown option '--bogus'\n")
+    ])
+    func argumentErrorsStartWithPls(_ arguments: [String], firstLine: String) throws {
+        let result = try pls(arguments)
+        #expect(result.stderr.hasPrefix(firstLine))
+        #expect(result.stderr.contains("Usage: pls"))
+    }
+
     @Test func anUnknownIDIs65() throws {
         #expect(try pls("run", "nosuch").status == 65)
     }

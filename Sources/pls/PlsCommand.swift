@@ -28,8 +28,23 @@ enum Main {
                 try command.run()
             }
         } catch {
-            PlsCommand.exit(withError: error)
+            exit(withError: error)
         }
+    }
+
+    /// ArgumentParser's errors written like pls's own, `pls: missing expected argument '<id>'` rather than
+    /// `Error: Missing…`, with the usage after them. Help, `--version` and thrown exit codes pass through unchanged.
+    private static func exit(withError error: Error) -> Never {
+        let message = PlsCommand.fullMessage(for: error)
+        let code = PlsCommand.exitCode(for: error)
+        guard code != .success, message.hasPrefix("Error: ") else { PlsCommand.exit(withError: error) }
+        var text = message.dropFirst("Error: ".count)
+        // Lowercase a capitalised word (`Missing`), not a name or an option (`--limit`).
+        if text.count > 1, text.first?.isUppercase == true, text.dropFirst().first?.isLowercase == true {
+            text = text.prefix(1).lowercased() + text.dropFirst()
+        }
+        printError("pls: " + text.trimmingCharacters(in: .newlines))
+        Foundation.exit(code.rawValue)
     }
 }
 
