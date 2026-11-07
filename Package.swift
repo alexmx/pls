@@ -15,7 +15,11 @@ let package = Package(
     targets: [
         // Embeds the skill `pls skill` prints. Resources/SKILL.md links to skills/use-pls/SKILL.md, where skill
         // installers find it.
-        .target(name: "PlsCore", dependencies: ["Yams"], resources: [.embedInCode("Resources/SKILL.md")]),
+        .target(
+            name: "PlsCore",
+            dependencies: ["Yams", .product(name: "Subprocess", package: "swift-subprocess")],
+            resources: [.embedInCode("Resources/SKILL.md")]
+        ),
         // Line editing for prompts: libedit ships with macOS.
         .target(name: "CEditLine", linkerSettings: [.linkedLibrary("edit")]),
         .executableTarget(

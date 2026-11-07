@@ -1,7 +1,7 @@
 import ArgumentParser
 import PlsCore
 
-struct AgainCommand: ParsableCommand {
+struct AgainCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "again",
         abstract: "Run the last automation again with the same values.",
@@ -13,7 +13,8 @@ struct AgainCommand: ParsableCommand {
 
     @OptionGroup var options: RunOptions
 
-    func run() throws {
+    @MainActor
+    func run() async throws {
         let binding: Binding
         do {
             binding = try HistoryStore().replayLast(in: Library.loadDefault())
@@ -32,6 +33,6 @@ struct AgainCommand: ParsableCommand {
                 throw Exit.usage
             }
         }
-        try perform(binding, via: .again, options: options)
+        try await perform(binding, via: .again, options: options)
     }
 }

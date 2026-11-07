@@ -1,11 +1,13 @@
 import Darwin
 import Foundation
+import Subprocess
+import System
 
 /// Runs an invocation in the current folder with the terminal attached.
 ///
-/// Uses `posix_spawn` rather than `Process`: `Process` puts the child in a new process group, which isn't the
-/// terminal's foreground group, so Ctrl-C never reaches the script and reading from the terminal stops it (SIGTTIN).
-/// Here the script stays in the caller's group.
+/// The script stays in the caller's process group, which is the terminal's foreground group: there Ctrl-C reaches it
+/// and it can read from the terminal. (Foundation's `Process` moves it into a group of its own, where neither works;
+/// swift-subprocess only does that when asked.)
 public enum Runner {
     public struct LaunchError: Error, CustomStringConvertible {
         public let description: String
@@ -18,50 +20,44 @@ public enum Runner {
     public static func run(
         _ invocation: Invocation,
         environment: [String: String] = ProcessInfo.processInfo.environment
-    ) throws(LaunchError) -> Int32 {
-        var attributes: posix_spawnattr_t?
-        posix_spawnattr_init(&attributes)
-        defer { posix_spawnattr_destroy(&attributes) }
-        var defaults = sigset_t()
-        sigemptyset(&defaults)
-        sigaddset(&defaults, SIGINT)
-        sigaddset(&defaults, SIGQUIT)
-        posix_spawnattr_setsigdefault(&attributes, &defaults)
-        var mask = sigset_t()
-        sigemptyset(&mask)
-        posix_spawnattr_setsigmask(&attributes, &mask)
-        posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK))
-
+    ) async throws(LaunchError) -> Int32 {
+        var options = PlatformOptions()
+        options.preSpawnProcessConfigurator = { attributes, _ in
+            var defaults = sigset_t()
+            sigemptyset(&defaults)
+            sigaddset(&defaults, SIGINT)
+            sigaddset(&defaults, SIGQUIT)
+            posix_spawnattr_setsigdefault(&attributes, &defaults)
+            var mask = sigset_t()
+            sigemptyset(&mask)
+            posix_spawnattr_setsigmask(&attributes, &mask)
+            var flags: Int16 = 0
+            posix_spawnattr_getflags(&attributes, &flags)
+            posix_spawnattr_setflags(&attributes, flags | Int16(POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK))
+        }
+        let variables = invocation.environment(inheriting: environment)
         let path = invocation.executable.path
-        let argv = [path] + invocation.arguments
-        let envp = invocation.environment(inheriting: environment).map { "\($0.key)=\($0.value)" }
-        var pid: pid_t = 0
-        let spawned = withCStrings(argv) { argv in
-            withCStrings(envp) { envp in
-                posix_spawn(&pid, path, nil, &attributes, argv, envp)
-            }
+        let status: TerminationStatus
+        do {
+            status = try await Subprocess.run(
+                .path(FilePath(path)),
+                arguments: Arguments(invocation.arguments),
+                environment: .custom(Dictionary(uniqueKeysWithValues: variables.compactMap { key, value in
+                    Environment.Key(rawValue: key).map { ($0, value) }
+                })),
+                platformOptions: options,
+                input: .currentStandardInput,
+                output: .currentStandardOutput,
+                error: .currentStandardError
+            ).terminationStatus
+        } catch let error as SubprocessError where error.code == .executableNotFound {
+            throw LaunchError(description: "couldn't start \(path): it, or the program its #! line names, can't be run")
+        } catch {
+            throw LaunchError(description: "couldn't start \(path): \(error)")
         }
-        guard spawned == 0 else {
-            throw LaunchError(description: "couldn't start \(path): \(String(cString: strerror(spawned)))")
+        return switch status {
+        case let .exited(code): code
+        case let .signaled(signal): 128 + signal
         }
-
-        var status: Int32 = 0
-        while waitpid(pid, &status, 0) == -1 {
-            guard errno == EINTR else {
-                throw LaunchError(description: "lost track of \(path): \(String(cString: strerror(errno)))")
-            }
-        }
-        // The <sys/wait.h> macros aren't available in Swift: low 7 bits = terminating signal, next byte = exit code.
-        let signal = status & 0x7F
-        return signal == 0 ? (status >> 8) & 0xFF : 128 + signal
-    }
-
-    /// A NULL-terminated C array of `strings`, valid inside `body`.
-    private static func withCStrings<R>(
-        _ strings: [String], _ body: ([UnsafeMutablePointer<CChar>?]) -> R
-    ) -> R {
-        let pointers = strings.map { strdup($0) } + [nil]
-        defer { pointers.forEach { free($0) } }
-        return body(pointers)
     }
 }

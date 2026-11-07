@@ -9,8 +9,8 @@ import PlsCore
 /// Commands that prompt must run on the main thread: prompting from a background thread, Ctrl-C and SIGTERM didn't end
 /// pls. So `main` parses and runs commands itself on the main actor, requests included, rather than through
 /// ArgumentParser's async `main`, which would run them on a background thread. That covers synchronous commands; an
-/// async command's `run()` is `@MainActor` itself (doctor, requests), since an async call would otherwise leave the
-/// main actor.
+/// async command's `run()` is `@MainActor` itself (run, again, doctor, requests), since an async call would otherwise
+/// leave the main actor.
 @main
 @MainActor
 enum Main {

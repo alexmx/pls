@@ -14,7 +14,8 @@ struct RunOptions: ParsableArguments {
 
 /// What `pls run`, `pls again` and requests share once they have a binding: ask for what's missing, confirm if
 /// the automation or the trigger wants it, then either preview (--dry-run) or run it (which records it in history).
-func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: RunOptions) throws {
+@MainActor
+func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: RunOptions) async throws {
     let (yes, dryRun) = (options.yes, options.dryRun)
     var binding = binding
     let automation = binding.automation
@@ -74,7 +75,7 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
     signal(SIGQUIT, SIG_IGN)
     let outcome: Runner.Outcome
     do {
-        outcome = try Runner.run(binding, via: trigger)
+        outcome = try await Runner.run(binding, via: trigger)
     } catch {
         printError("pls: \(error)")
         throw Exit.cannotRun

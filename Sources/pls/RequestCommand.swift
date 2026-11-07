@@ -45,7 +45,7 @@ struct RequestCommand: AsyncParsableCommand {
             }
             throw Exit.notFound
         }
-        try perform(binding, via: .request, options: options)
+        try await perform(binding, via: .request, options: options)
     }
 
     /// Without the model: offers the closest automations by shared words and returns the one picked, with

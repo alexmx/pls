@@ -118,16 +118,16 @@ struct RunTests {
     /// Runs the automation with `OUT` pointing at a file the script writes to; returns (status, file contents).
     private func run(
         _ home: TempHome, _ id: String, arguments: [String] = [], environment: [String: String] = [:]
-    ) throws -> (Int32, String) {
+    ) async throws -> (Int32, String) {
         let out = home.url.appending(path: "out.txt")
-        let status = try Runner.run(
+        let status = try await Runner.run(
             invocation(home, id, arguments: arguments),
             environment: environment.merging(["OUT": out.path, "PATH": "/usr/bin:/bin"]) { $1 }
         )
         return (status, (try? String(contentsOf: out, encoding: .utf8)) ?? "")
     }
 
-    @Test func scriptGetsArgumentsAndVariables() throws {
+    @Test func scriptGetsArgumentsAndVariables() async throws {
         let home = try TempHome()
         try home.write("a.sh", """
         #!/bin/zsh
@@ -137,25 +137,25 @@ struct RunTests {
         echo "$PLS_WORD ${PLS_NAME-unset} $PLS_ID" >> "$OUT"
         """, executable: true)
 
-        let (status, output) = try run(home, "a", arguments: ["two words"], environment: ["PLS_NAME": "stale"])
+        let (status, output) = try await run(home, "a", arguments: ["two words"], environment: ["PLS_NAME": "stale"])
 
         #expect(status == 0)
         #expect(output == "two words||two words unset a\n")
     }
 
-    @Test func exitStatusPassesThrough() throws {
+    @Test func exitStatusPassesThrough() async throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\nexit 3\n", executable: true)
-        #expect(try run(home, "a").0 == 3)
+        #expect(try await run(home, "a").0 == 3)
     }
 
-    @Test func signalBecomes128PlusTheSignal() throws {
+    @Test func signalBecomes128PlusTheSignal() async throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\nkill -TERM $$\n", executable: true)
-        #expect(try run(home, "a").0 == 128 + SIGTERM)
+        #expect(try await run(home, "a").0 == 128 + SIGTERM)
     }
 
-    @Test func appleScriptGetsItsParamsInOrder() throws {
+    @Test func appleScriptGetsItsParamsInOrder() async throws {
         let home = try TempHome()
         try home.write("a.applescript", """
         -- @pls.param first: string
@@ -166,7 +166,7 @@ struct RunTests {
         end run
         """)
 
-        let (status, output) = try run(home, "a", arguments: ["one", "two words"])
+        let (status, output) = try await run(home, "a", arguments: ["one", "two words"])
 
         #expect(status == 0)
         #expect(output == "one|two words")
@@ -174,37 +174,37 @@ struct RunTests {
 
     /// A script must stay in pls's process group: that's the terminal's foreground group, so Ctrl-C reaches the
     /// script and it can read from the terminal (a background group gets stopped by SIGTTIN).
-    @Test func scriptStaysInTheCallersProcessGroup() throws {
+    @Test func scriptStaysInTheCallersProcessGroup() async throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\nps -o pgid= -p $$ | tr -d ' ' > \"$OUT\"\n", executable: true)
-        let (status, output) = try run(home, "a")
+        let (status, output) = try await run(home, "a")
         #expect(status == 0)
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == String(getpgrp()))
     }
 
     /// pls ignores Ctrl-C while a script runs; the script must still get the default behavior and stop.
-    @Test func scriptGetsDefaultInterruptHandlingWhilePlsIgnoresIt() throws {
+    @Test func scriptGetsDefaultInterruptHandlingWhilePlsIgnoresIt() async throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\nkill -INT $$\nsleep 1\nexit 0\n", executable: true)
         let previous = signal(SIGINT, SIG_IGN)
         defer { signal(SIGINT, previous) }
-        #expect(try run(home, "a").0 == 128 + SIGINT)
+        #expect(try await run(home, "a").0 == 128 + SIGINT)
     }
 
-    @Test func missingProgramIsALaunchError() throws {
+    @Test func missingProgramIsALaunchError() async throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/nonexistent/interpreter\n")
-        #expect(throws: Runner.LaunchError.self) { try run(home, "a") }
+        await #expect(throws: Runner.LaunchError.self) { try await run(home, "a") }
     }
 
     // MARK: recorded runs
 
-    @Test func recordedRunIsWrittenToHistory() throws {
+    @Test func recordedRunIsWrittenToHistory() async throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\n# @pls.param port: int\nexit 3\n", executable: true)
         let history = HistoryStore(file: home.url.appending(path: "history.jsonl"))
 
-        let outcome = try Runner.run(binding(home, "a", arguments: ["80"]), via: .again, history: history)
+        let outcome = try await Runner.run(binding(home, "a", arguments: ["80"]), via: .again, history: history)
 
         #expect(outcome.status == 3)
         #expect(outcome.historyError == nil)
@@ -219,24 +219,28 @@ struct RunTests {
         #expect(entry.seconds >= 0)
     }
 
-    @Test func unwritableHistoryKeepsTheStatusAndReportsTheError() throws {
+    @Test func unwritableHistoryKeepsTheStatusAndReportsTheError() async throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/bin/zsh\nexit 4\n", executable: true)
         let file = home.url.appending(path: "history.jsonl")
         try Data().write(to: file)
         try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file.path)
 
-        let outcome = try Runner.run(binding(home, "a"), via: .run, history: HistoryStore(file: file))
+        let outcome = try await Runner.run(binding(home, "a"), via: .run, history: HistoryStore(file: file))
 
         #expect(outcome.status == 4)
         #expect(outcome.historyError != nil)
     }
 
-    @Test func scriptThatCantStartIsNotRecorded() throws {
+    @Test func scriptThatCantStartIsNotRecorded() async throws {
         let home = try TempHome()
         try home.write("a.sh", "#!/nonexistent/interpreter\n")
         let history = HistoryStore(file: home.url.appending(path: "history.jsonl"))
-        #expect(throws: Runner.LaunchError.self) { try Runner.run(binding(home, "a"), via: .run, history: history) }
+        await #expect(throws: Runner.LaunchError.self) { try await Runner.run(
+            binding(home, "a"),
+            via: .run,
+            history: history
+        ) }
         #expect(history.recent(1).isEmpty)
     }
 }

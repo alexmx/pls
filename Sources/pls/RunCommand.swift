@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import PlsCore
 
-struct RunCommand: ParsableCommand {
+struct RunCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "run",
         abstract: "Run an automation.",
@@ -24,7 +24,8 @@ struct RunCommand: ParsableCommand {
         CompletionCommand.words(for: Completer.runArguments(words, current: current, library: .loadDefault()))
     }
 
-    func run() throws {
+    @MainActor
+    func run() async throws {
         let library = Library.loadDefault()
         let automation: Automation
         do {
@@ -45,6 +46,6 @@ struct RunCommand: ParsableCommand {
             printError("pls: \(error)")
             throw Exit.usage
         }
-        try perform(binding, via: .run, options: options)
+        try await perform(binding, via: .run, options: options)
     }
 }

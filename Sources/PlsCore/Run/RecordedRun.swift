@@ -15,11 +15,11 @@ extension Runner {
         via trigger: HistoryEntry.Trigger,
         history: HistoryStore = HistoryStore(),
         environment: [String: String] = ProcessInfo.processInfo.environment
-    ) throws(LaunchError) -> Outcome {
+    ) async throws(LaunchError) -> Outcome {
         let started = Date()
         // Duration from a monotonic clock, so a clock change during the run can't make it negative or huge.
         let clock = ContinuousClock.now
-        let status = try run(Invocation(binding), environment: environment)
+        let status = try await run(Invocation(binding), environment: environment)
         let elapsed = ContinuousClock.now - clock
         let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
 
