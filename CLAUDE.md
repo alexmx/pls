@@ -25,8 +25,9 @@ Workflow: main
 - `Sources/pls/`: the CLI
 - `Evals/`: eval library, cases and runner for the model (`xc evals`)
 - `Sources/CEditLine/`: tiny C wrapper for libedit, which the CLI's prompts read lines through
-- `Tests/PlsTests/`: tests for the CLI's own code (the zsh completion script; exit codes and error messages, run
-  against the built `pls`)
+- `Tests/PlsTests/`: tests for the CLI's own code (the zsh completion script; exit codes, error messages and
+  terminal behaviour, run against the built `pls` through `BuiltPls`)
+- Child processes go through swift-subprocess, in the app and the tests, never Foundation's `Process`
 - `Tests/PlsCoreTests/`: Swift Testing; every top-level suite has `@Suite(.timeLimit(.minutes(1)))` (lint-enforced)
 - `skills/use-pls/SKILL.md`: the agent skill, embedded into `PlsCore` through the `Resources/SKILL.md` symlink
 - `examples/home/`: sample library (each automation format, plus a Shortcut wrapper); doubles as format documentation
