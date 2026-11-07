@@ -9,7 +9,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.0"),
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.8.0")
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.8.0"),
+        .package(url: "https://github.com/swiftlang/swift-subprocess.git", .upToNextMinor(from: "1.0.2"))
     ],
     targets: [
         // Embeds the skill `pls skill` prints. Resources/SKILL.md links to skills/use-pls/SKILL.md, where skill
@@ -24,7 +25,9 @@ let package = Package(
             ]
         ),
         .testTarget(name: "PlsCoreTests", dependencies: ["PlsCore", "Yams"]),
-        .testTarget(name: "PlsTests", dependencies: ["pls"]),
+        .testTarget(
+            name: "PlsTests", dependencies: ["pls", .product(name: "Subprocess", package: "swift-subprocess")]
+        ),
         // `xc evals`: how well the model picks and fills, on a fixed set of requests. Not run by `swift test`.
         .executableTarget(name: "PlsEvals", dependencies: ["PlsCore", "Yams"], path: "Evals/Sources/PlsEvals"),
         .testTarget(name: "PlsEvalsTests", dependencies: ["PlsEvals", "PlsCore"], path: "Evals/Tests/PlsEvalsTests")
