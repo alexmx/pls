@@ -24,6 +24,12 @@ the automation and fills its values; pls shows the plan and asks before running 
 ## Install
 
 ```sh
+brew install alexmx/tools/pls
+```
+
+Or build it yourself:
+
+```sh
 git clone https://github.com/alexmx/pls.git
 cd pls
 swift build -c release

@@ -1,0 +1,35 @@
+name: CI
+
+# The push and pull request triggers stay off until the repo is public; until then this only runs when started by hand.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    # pls uses the macOS 27 SDK (FoundationModels' LanguageModelError), so it needs Xcode 27; Apple silicon only.
+    runs-on: xcode-27
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # Compiles the whole package first, so this also covers the build. The tests that ask the on-device model skip
+      # themselves: runners have no Apple Intelligence.
+      - name: Run unit tests
+        run: swift test
