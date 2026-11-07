@@ -1,4 +1,5 @@
 import ArgumentParser
+import PlsCore
 
 struct CompletionCommand: ParsableCommand {
     enum Shell: String, CaseIterable, ExpressibleByArgument {
@@ -30,9 +31,16 @@ struct CompletionCommand: ParsableCommand {
         print(Self.withFileCompletion(script) ?? script)
     }
 
-    /// What a custom completion prints to have zsh complete files instead. Completer escapes a leading colon in its
-    /// suggestions, so none of them can be this.
-    static let filesMarker = ":files"
+    /// The words a custom completion prints for `completion`: the suggestions, or a marker the script hands over to
+    /// zsh's file completion. Completer escapes colons in its suggestions, so none of them can be the marker.
+    static func words(for completion: Completer.Completion) -> [String] {
+        switch completion {
+        case let .suggestions(suggestions): suggestions
+        case .files: [filesMarker]
+        }
+    }
+
+    private static let filesMarker = ":files"
 
     /// ArgumentParser's zsh script with a line that hands the marker over to `_files`, zsh's own file completion
     /// (custom completions can only list words). Nil if the line its custom completions are read in has changed.
