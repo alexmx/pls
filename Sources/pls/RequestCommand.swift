@@ -52,7 +52,7 @@ struct RequestCommand: AsyncParsableCommand {
         try perform(binding, via: .request, yes: yes, dryRun: dryRun)
     }
 
-    /// Without the model (SPEC §7): offers the closest automations by shared words and returns the one picked, with
+    /// Without the model: offers the closest automations by shared words and returns the one picked, with
     /// its defaults; `perform` then asks for what's missing and shows the plan. Exit 69 if none is picked.
     private func pickByWords(_ request: String, in library: Library, because reason: String) throws -> Binding {
         printError("pls: \(reason); matching by words instead")

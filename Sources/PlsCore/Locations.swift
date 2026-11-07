@@ -1,6 +1,6 @@
 import Foundation
 
-/// Where pls keeps things (SPEC §2): `$PLS_HOME` when set, so a test library is self-contained; otherwise the XDG
+/// Where pls keeps things: `$PLS_HOME` when set, so a test library is self-contained; otherwise the XDG
 /// folder for that kind of file.
 enum Locations {
     /// `$PLS_HOME`, else `$<xdgVariable>/pls`, else `~/<fallback>/pls`.

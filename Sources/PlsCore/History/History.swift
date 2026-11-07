@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-/// One run of an automation, as recorded in history (SPEC §8).
+/// One run of an automation, as recorded in history.
 public struct HistoryEntry: Codable, Sendable, Equatable {
     public enum Trigger: String, Codable, Sendable {
         case run
@@ -157,7 +157,7 @@ public enum ReplayError: Error, Equatable {
 }
 
 extension HistoryStore {
-    /// A binding that repeats the newest run against `library` as it is now (SPEC §8).
+    /// A binding that repeats the newest run against `library` as it is now.
     public func replayLast(in library: Library) throws(ReplayError) -> Binding {
         guard let last = recent(1).first else { throw .noHistory }
         guard let automation = library.automation(id: last.id) else {

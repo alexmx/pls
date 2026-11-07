@@ -19,7 +19,7 @@ enum Prompt {
         }
     }
 
-    /// Shows the plan and asks "Run? [Y/n/e]" (SPEC §6). `e` edits each value in turn, then shows the plan again.
+    /// Shows the plan and asks "Run? [Y/n/e]". `e` edits each value in turn, then shows the plan again.
     /// Returns false if the answer is no; Ctrl-D while editing cancels.
     static func review(_ binding: inout Binding) throws -> Bool {
         planLines(binding).forEach(printError)

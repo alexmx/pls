@@ -1,6 +1,6 @@
 import PlsCore
 
-/// The automation and each param's value with where it came from (SPEC §6 "plan display").
+/// The automation and each param's value with where it came from.
 func planLines(_ binding: Binding) -> [String] {
     let automation = binding.automation
     let rows = automation.params.map { param -> [String] in

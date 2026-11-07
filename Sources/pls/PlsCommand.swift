@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import PlsCore
 
-/// Natural-language dispatch happens before ArgumentParser (SPEC §6, §10): a known command or option wins, anything
+/// Natural-language dispatch happens before ArgumentParser: a known command or option wins, anything
 /// else is a request. A default subcommand can't do this, as its name would become one more word a request can't
 /// start with.
 ///
@@ -72,12 +72,18 @@ struct PlsCommand: ParsableCommand {
     )
 }
 
-/// Exit codes from SPEC §6.
+/// pls's exit codes. Besides these: the script's own code when it ran (128 + the signal if one ended it), and 1 when
+/// the model couldn't answer a request (a refusal, an unsupported language, a library too big for its context).
 enum Exit {
+    /// Usage or validation error, or a question with no terminal to ask in.
     static let usage = ExitCode(64)
+    /// Unknown id, or no automation matches a request.
     static let notFound = ExitCode(65)
+    /// The model is unavailable and no automation was picked by words instead.
     static let modelUnavailable = ExitCode(69)
+    /// The script couldn't be started, e.g. its shebang's interpreter doesn't exist.
     static let cannotRun = ExitCode(126)
+    /// Cancelled at a prompt.
     static let cancelled = ExitCode(130)
 }
 

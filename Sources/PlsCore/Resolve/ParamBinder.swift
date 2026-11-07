@@ -50,7 +50,7 @@ public struct Binding: Sendable, Equatable {
         values[param.name] = BoundValue(value, source)
     }
 
-    /// Changes a value while reviewing the plan (SPEC §6). An empty value resets a param with a default and clears an
+    /// Changes a value while reviewing the plan. An empty value resets a param with a default and clears an
     /// optional one, but a required param can't be empty. Only an actual change counts as an edit.
     public mutating func edit(_ value: String, for param: Param) throws(BindingError) {
         let before = values[param.name]
@@ -118,7 +118,7 @@ struct ParsedArguments {
     }
 }
 
-/// Turns the arguments after `pls run <id>` into a `Binding` (SPEC §4.3, §6).
+/// Turns the arguments after `pls run <id>` into a `Binding`.
 ///
 /// - Positional values fill the params not given by name, in declared order.
 /// - `--name value` and `--name=value`; dashes in the name may stand for underscores (`--older-than-days`).
@@ -163,7 +163,7 @@ public enum ParamBinder {
         return binding
     }
 
-    /// A binding from the values the model read out of a request (SPEC §7). A value that's empty or doesn't fit its
+    /// A binding from the values the model read out of a request. A value that's empty or doesn't fit its
     /// param is left out, so the param falls back to its default or gets asked for; the plan shows which. A value equal
     /// to the default stays the default: the model often fills one in, and the request didn't choose it. A path that
     /// neither looks like one nor names something in `directory` ("my screenshots folder") describes a folder rather
@@ -188,7 +188,7 @@ public enum ParamBinder {
             || FileManager.default.fileExists(atPath: directory.appending(path: value).path)
     }
 
-    /// A binding that repeats a run's chosen values against the automation as it is now (SPEC §8): they're replayed,
+    /// A binding that repeats a run's chosen values against the automation as it is now: they're replayed,
     /// defaults come from the current automation, params it no longer has are dropped, and required params it has
     /// gained are left missing for the caller to ask for.
     public static func replay(_ chosen: [String: String], for automation: Automation) throws(BindingError) -> Binding {

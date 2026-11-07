@@ -1,6 +1,6 @@
 import Foundation
 
-/// Reads the `@pls.` comment header at the top of a single-file automation (SPEC §3.1, §4.2).
+/// Reads the `@pls.` comment header at the top of a single-file automation.
 ///
 /// The header is the run of comment and blank lines after an optional shebang; parsing stops at the first
 /// line of code. Diagnostics carry 1-based line numbers but no file; the caller adds that.

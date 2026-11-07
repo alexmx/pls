@@ -7,7 +7,7 @@
 # A default also satisfies an expected value, so a case that tests filling should state values that differ from the
 # defaults (a missed value would otherwise pass).
 # A case fails if the pick is wrong, an expected value is missing or wrong, or the model fills any other param
-# (an invented value: SPEC §7 says fill only what the request states).
+# (an invented value: the fill instructions say fill only what the request states).
 
 - request: compress the jpgs on my desktop to 60% quality
   expect: compress-images

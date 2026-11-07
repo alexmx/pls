@@ -1,7 +1,7 @@
 import Foundation
 import FoundationModels
 
-/// Natural language → a binding, with Apple's on-device model (SPEC §7). Two stages: route the request to one
+/// Natural language → a binding, with Apple's on-device model. Two stages: route the request to one
 /// automation, then fill that automation's params. Both use greedy sampling and a fresh session, so the same request
 /// against the same library gets the same answer.
 public struct NLResolver: Sendable {
@@ -142,7 +142,7 @@ public struct NLResolver: Sendable {
 
     // MARK: context budget
 
-    /// How much of the model's context routing a request over `library` takes (SPEC §7, §9): the instructions, the
+    /// How much of the model's context routing a request over `library` takes: the instructions, the
     /// prompt listing every described automation and the schema repeating their ids, without the request itself.
     public func routingBudget(for library: Library) async throws(ModelError) -> RoutingBudget {
         try requireModel()

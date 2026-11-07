@@ -1,6 +1,6 @@
 import Foundation
 
-/// Everything `pls doctor` reports (SPEC §9): loading problems plus checks on the automations that loaded.
+/// Everything `pls doctor` reports: loading problems plus checks on the automations that loaded.
 public enum Doctor {
     public static func check(_ library: Library) -> [Diagnostic] {
         var found = library.diagnostics

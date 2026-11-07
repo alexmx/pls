@@ -1,6 +1,6 @@
 import Foundation
 
-/// The automations in `<home>/automations`, plus every problem found while loading them (SPEC §2–3).
+/// The automations in `<home>/automations`, plus every problem found while loading them.
 ///
 /// An automation with any error is left out of `automations`; its errors are in `diagnostics`.
 public struct Library: Sendable {

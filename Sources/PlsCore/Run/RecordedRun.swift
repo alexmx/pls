@@ -9,7 +9,7 @@ extension Runner {
         public let historyError: HistoryStore.WriteError?
     }
 
-    /// Runs `binding` and records the run in `history` (SPEC §5, §8). A script that can't be started is not recorded.
+    /// Runs `binding` and records the run in `history`. A script that can't be started is not recorded.
     public static func run(
         _ binding: Binding,
         via trigger: HistoryEntry.Trigger,

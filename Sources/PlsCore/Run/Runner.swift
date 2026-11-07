@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-/// Runs an invocation in the current folder with the terminal attached (SPEC §5).
+/// Runs an invocation in the current folder with the terminal attached.
 ///
 /// Uses `posix_spawn` rather than `Process`: `Process` puts the child in a new process group, which isn't the
 /// terminal's foreground group, so Ctrl-C never reaches the script and reading from the terminal stops it (SIGTTIN).

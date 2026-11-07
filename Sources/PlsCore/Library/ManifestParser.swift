@@ -1,7 +1,7 @@
 import Foundation
 import Yams
 
-/// Reads `manifest.yaml` of a folder automation (SPEC §3.2). Diagnostics carry the YAML line but no file.
+/// Reads `manifest.yaml` of a folder automation. Diagnostics carry the YAML line but no file.
 public enum ManifestParser {
     public struct Result: Sendable, Equatable {
         public var metadata = Metadata()
@@ -152,7 +152,7 @@ public enum ManifestParser {
 
         // MARK: helpers
 
-        /// Only `true` / `false`, as in headers (SPEC §4.1); YAML's `yes` / `on` are not accepted.
+        /// Only `true` / `false`, as in headers; YAML's `yes` / `on` are not accepted.
         func strictBool(_ node: Node) -> Bool? {
             switch node.scalar?.string {
             case "true": true

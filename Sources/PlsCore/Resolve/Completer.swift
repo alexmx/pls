@@ -1,4 +1,4 @@
-/// What Tab offers for `pls run` and `pls show` (SPEC §6). Each suggestion is `value` or `value:description`, the form
+/// What Tab offers for `pls run` and `pls show`. Each suggestion is `value` or `value:description`, the form
 /// zsh's `_describe` lists; zsh itself narrows them to what's been typed of the word.
 public enum Completer {
     public enum Completion: Equatable, Sendable {

@@ -2,7 +2,7 @@ import Foundation
 
 enum Shebang {
     /// The `#!` line of `script` split into program and arguments, e.g. `["/usr/bin/env", "python3"]`; nil when there's
-    /// no shebang or it names no program. Such a script runs with zsh (SPEC §5).
+    /// no shebang or it names no program. Such a script runs with zsh.
     static func read(_ script: URL) -> [String]? {
         guard let handle = try? FileHandle(forReadingFrom: script) else { return nil }
         defer { try? handle.close() }

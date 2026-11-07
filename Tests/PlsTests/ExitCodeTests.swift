@@ -1,8 +1,8 @@
 import Foundation
 import Testing
 
-/// The exit codes in SPEC §6, checked by running the built `pls` on a throwaway library with the model off. Exit 1
-/// (the model couldn't answer a request) isn't covered: it needs the model to refuse or fail.
+/// pls's exit codes (`Exit`, plus the script's own), checked by running the built `pls` on a throwaway library with
+/// the model off. Exit 1 (the model couldn't answer a request) isn't covered: it needs the model to refuse or fail.
 @Suite(.timeLimit(.minutes(1)))
 struct ExitCodeTests {
     private let home: ThrowawayHome

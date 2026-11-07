@@ -45,7 +45,7 @@ struct DoctorCommand: AsyncParsableCommand {
         return errors
     }
 
-    /// Whether requests can use the model and how much of its context routing takes (SPEC §9). Info only: it never
+    /// Whether requests can use the model and how much of its context routing takes. Info only: it never
     /// changes the exit code.
     private func reportModel(for library: Library) async {
         do throws(NLResolver.ModelError) {

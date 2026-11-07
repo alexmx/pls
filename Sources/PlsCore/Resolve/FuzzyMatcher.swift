@@ -1,4 +1,4 @@
-/// Ranks automations by the words a request shares with their id, name, description and examples (SPEC §7): the
+/// Ranks automations by the words a request shares with their id, name, description and examples: the
 /// suggestions when the model finds no match, and the fallback when it can't be used. Plain word matching, so the same
 /// request against the same library always gives the same answer.
 public enum FuzzyMatcher {

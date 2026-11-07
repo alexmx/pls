@@ -7,7 +7,7 @@ import PlsCore
 func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, yes: Bool, dryRun: Bool) throws {
     var binding = binding
     let automation = binding.automation
-    // A request is the model's guess, so it's always shown before it runs (SPEC §6).
+    // A request is the model's guess, so it's always shown before it runs.
     let asksFirst = (automation.confirm || trigger == .request) && !yes && !dryRun
 
     // Without a terminal nothing can be asked: fail before announcing anything.

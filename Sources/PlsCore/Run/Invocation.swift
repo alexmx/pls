@@ -1,6 +1,6 @@
 import Foundation
 
-/// Exactly what runs for a binding: the program, its arguments and the variables pls sets (SPEC §5).
+/// Exactly what runs for a binding: the program, its arguments and the variables pls sets.
 /// Built without side effects, so `--dry-run` shows the same thing `Runner` would run.
 public struct Invocation: Sendable, Equatable {
     public let executable: URL

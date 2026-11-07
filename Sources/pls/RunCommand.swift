@@ -34,7 +34,7 @@ struct RunCommand: ParsableCommand {
         do {
             automation = try library.require(id)
         } catch {
-            // `pls run the backup` was probably meant as a request; command names win (SPEC §6).
+            // `pls run the backup` was probably meant as a request; command names win.
             if !values.isEmpty, !library.leftOutIDs.contains(id) {
                 printError(
                     "pls: to ask in plain words, quote the request: pls \"\((["run", id] + values).joined(separator: " "))\""
