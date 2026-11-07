@@ -128,6 +128,30 @@ struct NLResolverModelTests {
         #expect(error?.description.contains("don't fit in the model's context") == true, "\(String(describing: error))")
     }
 
+    /// An example worded for another automation is reported on the automation that claims it; fitting ones aren't.
+    @Test func doctorReportsAnExampleThatPicksAnotherAutomation() async throws {
+        let home = try TempHome()
+        try home.write("kill-port.sh", """
+        # @pls.description: Kill whatever process is listening on a TCP port
+        # @pls.example: free up port 3000
+        """)
+        let darkMode = try home.write("dark-mode.sh", """
+        # @pls.description: Switch the system appearance between dark and light
+        # @pls.example: turn on dark mode
+        # @pls.example: something is stuck on port 8080
+        """)
+        let library = Library.load(home: home.url)
+        let misses = try await Doctor.checkExamples(
+            of: library.automations,
+            in: library,
+            resolver: NLResolver(environment: [:])
+        )
+        #expect(misses == [Diagnostic(
+            .warning, "example \"something is stuck on port 8080\" picks kill-port", file: darkMode,
+            automation: "dark-mode"
+        )])
+    }
+
     /// "none" is a valid id, so the no-match answer must be something an id can't be.
     @Test func anAutomationCalledNoneIsntTheNoMatchAnswer() async throws {
         let home = try TempHome()

@@ -52,6 +52,7 @@ struct ExitCodeTests {
 
     @Test func anUnknownIDIs65() throws {
         #expect(try pls("run", "nosuch").status == 65)
+        #expect(try pls("doctor", "--examples", "nosuch").status == 65)
     }
 
     @Test func noWordMatchWithoutTheModelIs69() throws {

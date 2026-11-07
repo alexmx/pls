@@ -24,8 +24,10 @@ description, examples and params is most of what it has to go on.
    - `pls doctor`: no errors or warnings for your file. An automation with an error is left out entirely.
    - `pls show <id>`: the params, types and defaults are what you meant.
    - `pls run <id> --dry-run <values>`: the exact command and variables pls would run.
-   - `pls "<one of your examples>" --dry-run`: routes to your automation with the right values (needs Apple
-     Intelligence; doctor's `Model:` line says whether it's available). Also try a phrasing that isn't an example.
+   - `pls doctor --examples <id>`: each of your examples picks your automation, not a neighbour (needs Apple
+     Intelligence; doctor's `Model:` line says whether it's available). A miss means requests worded like it miss too:
+     reword the description or examples, or try another id (the model can favour one id over another).
+   - `pls "<a phrasing that isn't an example>" --dry-run`: routes to your automation with the right values.
 4. Check the script itself: everything in step 3 passes even when the script can't run. Run it directly, the way pls
    would, with the variables set: `PLS_DAYS=30 PLS_FOLDER=/tmp/fixture zsh <file>` (`osascript <file> <values…>` for
    AppleScript). When it deletes, moves or overwrites things, run it on throwaway data made for the test (a scratch

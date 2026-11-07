@@ -7,10 +7,42 @@ struct DoctorCommand: AsyncParsableCommand {
         commandName: "doctor", abstract: "Check your automations for problems, and whether the model can be used."
     )
 
+    @Option(
+        parsing: .upToNextOption,
+        help: ArgumentHelp(
+            "Also check that each example of these automations picks its own automation.",
+            discussion: "Asks the model once per example, a few seconds each in a big library.",
+            valueName: "id"
+        ),
+        completion: .custom { _, _, _ in Completer.ids(in: .loadDefault()) }
+    )
+    var examples: [String] = []
+
     @MainActor
     func run() async throws {
         let library = Library.loadDefault()
-        let errors = report(Doctor.check(library), in: library)
+        var problems = Doctor.check(library)
+        var examplesLine: String?
+        if !examples.isEmpty {
+            let automations = try examples.map { try library.require($0) }
+            let count = automations.map(\.examples.count).reduce(0, +)
+            do throws(NLResolver.ModelError) {
+                let misses = try await Prompt.showingStatus("Checking \(count) examples…") {
+                    () async throws(NLResolver.ModelError) in
+                    try await Doctor.checkExamples(of: automations, in: library)
+                }
+                problems += misses
+                examplesLine = misses.isEmpty
+                    ? "Examples: all \(count) pick their automation"
+                    : "Examples: \(misses.count) of \(count) pick another automation (warnings above)"
+            } catch {
+                examplesLine = "Examples: not checked; \(error)"
+            }
+        }
+        let errors = report(problems, in: library)
+        if let examplesLine {
+            print("\n" + examplesLine)
+        }
         await reportModel(for: library)
         if errors > 0 {
             throw ExitCode(1)

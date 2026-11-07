@@ -35,10 +35,29 @@ public struct NLResolver: Sendable {
         try requireModel()
         let candidates = Self.candidates(in: library)
         guard !candidates.isEmpty else { return nil }
-        do {
+        return try await asking(about: candidates) {
             guard let automation = try await route(request, among: candidates) else { return nil }
             let values = automation.params.isEmpty ? [:] : try await fill(request, for: automation)
             return ParamBinder.bind(automation, request: request, values: values)
+        }
+    }
+
+    /// The automation `request` routes to, or nil if none fits: routing alone, without filling values.
+    public func route(_ request: String, in library: Library) async throws(ModelError) -> Automation? {
+        try requireModel()
+        let candidates = Self.candidates(in: library)
+        guard !candidates.isEmpty else { return nil }
+        return try await asking(about: candidates) {
+            try await route(request, among: candidates)
+        }
+    }
+
+    /// Runs `body`, which asks the model about `candidates`, turning its errors into `.failed` with a reason.
+    private func asking<T>(
+        about candidates: [Automation], _ body: () async throws -> T
+    ) async throws(ModelError) -> T {
+        do {
+            return try await body()
         } catch where Self.isContextOverflow(error) {
             throw .failed("""
             the request and the \(candidates.count) automations offered don't fit in the model's context; \

@@ -17,4 +17,26 @@ public enum Doctor {
         }
         return found
     }
+
+    /// Routes each example of `automations` against the whole library and warns about every one the model sends
+    /// elsewhere: the examples say what an automation is for, so a miss there means real requests will miss too. Asks
+    /// the model once per example, a few seconds each in a big library.
+    public static func checkExamples(
+        of automations: [Automation], in library: Library, resolver: NLResolver = NLResolver()
+    ) async throws(NLResolver.ModelError) -> [Diagnostic] {
+        var found: [Diagnostic] = []
+        for automation in automations {
+            for example in automation.examples {
+                let picked = try await resolver.route(example, in: library)
+                guard picked?.id != automation.id else { continue }
+                found.append(Diagnostic(
+                    .warning,
+                    "example \"\(example)\" picks \(picked?.id ?? "no automation")",
+                    file: automation.declarationURL,
+                    automation: automation.id
+                ))
+            }
+        }
+        return found
+    }
 }
