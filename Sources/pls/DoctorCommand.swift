@@ -24,20 +24,9 @@ struct DoctorCommand: AsyncParsableCommand {
         var problems = Doctor.check(library)
         var examplesLine: String?
         if !examples.isEmpty {
-            let automations = try examples.map { try library.require($0) }
-            let count = automations.map(\.examples.count).reduce(0, +)
-            do throws(NLResolver.ModelError) {
-                let misses = try await Prompt.showingStatus("Checking \(count) examples…") {
-                    () async throws(NLResolver.ModelError) in
-                    try await Doctor.checkExamples(of: automations, in: library)
-                }
-                problems += misses
-                examplesLine = misses.isEmpty
-                    ? "Examples: all \(count) pick their automation"
-                    : "Examples: \(misses.count) of \(count) pick another automation (warnings above)"
-            } catch {
-                examplesLine = "Examples: not checked; \(error)"
-            }
+            let checked = try await checkExamples(in: library)
+            problems += checked.misses
+            examplesLine = checked.line
         }
         let errors = report(problems, in: library)
         if let examplesLine {
@@ -46,6 +35,28 @@ struct DoctorCommand: AsyncParsableCommand {
         await reportModel(for: library)
         if errors > 0 {
             throw ExitCode(1)
+        }
+    }
+
+    /// The `--examples` automations' examples that pick another automation, and the line summing them up. Unknown ids
+    /// exit 65; when the model can't be used, nothing is checked and the line says why.
+    @MainActor
+    private func checkExamples(in library: Library) async throws -> (misses: [Diagnostic], line: String) {
+        let automations = try examples.map { try library.require($0) }
+        let count = automations.map(\.examples.count).reduce(0, +)
+        do throws(NLResolver.ModelError) {
+            let misses = try await Prompt.showingStatus("Checking \(count) examples…") {
+                () async throws(NLResolver.ModelError) in
+                try await Doctor.checkExamples(of: automations, in: library)
+            }
+            return (
+                misses,
+                misses.isEmpty
+                    ? "Examples: all \(count) pick their automation"
+                    : "Examples: \(misses.count) of \(count) pick another automation (warnings above)"
+            )
+        } catch {
+            return ([], "Examples: not checked; \(error)")
         }
     }
 
