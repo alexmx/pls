@@ -1,6 +1,7 @@
 import Foundation
 
-/// The automations in `<home>/automations`, plus every problem found while loading them.
+/// The automations in `<home>/automations` and the turned-on ones of installed collections (`CollectionStore`), plus
+/// every problem found while loading them.
 ///
 /// An automation with any error is left out of `automations`; its errors are in `diagnostics`.
 public struct Library: Sendable {
@@ -8,13 +9,17 @@ public struct Library: Sendable {
     /// Sorted by id.
     public let automations: [Automation]
     public let diagnostics: [Diagnostic]
+    /// Short ids that several collections use (and your library doesn't): each such automation is known only by its
+    /// `owner/repo/<id>`, listed here for saying so.
+    public let ambiguousIDs: [String: [String]]
 
     public var automationsDirectory: URL {
         Self.automationsDirectory(in: home)
     }
 
+    /// By id, or by `owner/repo/<id>` for a collection's automation.
     public func automation(id: String) -> Automation? {
-        automations.first { $0.id == id }
+        automations.first { $0.id == id } ?? automations.first { $0.qualifiedID == id }
     }
 
     /// Ids of automations left out because of errors. An id can also be in `automations` when only a
@@ -29,29 +34,40 @@ public struct Library: Sendable {
     }
 
     public static func load(home: URL) -> Library {
-        let directory = automationsDirectory(in: home)
-        var loader = Loader()
-        let entries: [URL]
-        do {
-            entries = try FileManager.default.contentsOfDirectory(
-                at: directory, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
-            )
-        } catch {
-            // A missing folder is normal before the first automation; anything else (permissions, a file
-            // in its place) is a real problem. Either way, say so rather than look like an empty library.
-            let missing = !FileManager.default.fileExists(atPath: directory.path)
-            loader.diagnostics.append(missing
-                ? Diagnostic(.warning, "folder doesn't exist; create it and add automations there", file: directory)
-                : Diagnostic(.error, "can't read the folder: \(error.localizedDescription)", file: directory))
-            entries = []
+        var own = Loader()
+        own.loadAll(in: automationsDirectory(in: home), missing: .warning)
+        var automations = own.automations
+        var diagnostics = own.diagnostics
+
+        let store = CollectionStore(home: home)
+        var installed: [Automation] = []
+        for collection in store.installed() {
+            var loader = Loader(collection: collection.source)
+            loader.loadAll(in: store.folder(of: collection.source).appending(path: "automations"), missing: .error)
+            // A turned-off automation doesn't load, so its problems don't matter.
+            diagnostics += loader.diagnostics.filter { $0.automationID.map(collection.isEnabled) ?? true }
+            installed += loader.automations.filter { collection.isEnabled($0.id) }
         }
-        for url in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-            loader.load(url)
+        // Your own automations keep their ids; a collection's keeps its short id unless your library or another
+        // collection uses it too, and is then known by `owner/repo/<id>`.
+        let ownIDs = Set(automations.map(\.id))
+        let collectionsUsing = Dictionary(grouping: installed, by: \.id)
+        var ambiguous: [String: [String]] = [:]
+        for automation in installed {
+            guard ownIDs.contains(automation.id) || collectionsUsing[automation.id, default: []].count > 1 else {
+                automations.append(automation)
+                continue
+            }
+            if !ownIDs.contains(automation.id) {
+                ambiguous[automation.id, default: []].append(automation.qualifiedID)
+            }
+            automations.append(automation.with(id: automation.qualifiedID))
         }
         return Library(
             home: home,
-            automations: loader.automations.sorted { $0.id < $1.id },
-            diagnostics: loader.diagnostics
+            automations: automations.sorted { $0.id < $1.id },
+            diagnostics: diagnostics,
+            ambiguousIDs: ambiguous
         )
     }
 
@@ -61,10 +77,39 @@ public struct Library: Sendable {
 }
 
 private struct Loader {
+    /// The collection being loaded, `owner/repo`; nil for your own automations.
+    var collection: String?
     var automations: [Automation] = []
     var diagnostics: [Diagnostic] = []
     /// id → where it was first defined, to report duplicates.
     var seen: [String: URL] = [:]
+
+    /// Loads every automation in `directory`. A missing folder is `missing`: normal before your first automation, a
+    /// problem for a collection's clone.
+    mutating func loadAll(in directory: URL, missing: Diagnostic.Severity) {
+        let entries: [URL]
+        do {
+            entries = try FileManager.default.contentsOfDirectory(
+                at: directory, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+            )
+        } catch {
+            // Anything but a missing folder (permissions, a file in its place) is a real problem. Either way, say so
+            // rather than look like an empty library.
+            let isMissing = !FileManager.default.fileExists(atPath: directory.path)
+            diagnostics.append(isMissing
+                ? Diagnostic(
+                    missing,
+                    collection.map { "the clone of \($0) is missing; run `pls collection add \($0)`" }
+                        ?? "folder doesn't exist; create it and add automations there",
+                    file: directory
+                )
+                : Diagnostic(.error, "can't read the folder: \(error.localizedDescription)", file: directory))
+            return
+        }
+        for url in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            load(url)
+        }
+    }
 
     mutating func load(_ url: URL) {
         if isDirectory(url) {
@@ -90,7 +135,7 @@ private struct Loader {
         }
         let parsed = HeaderParser.parse(text, commentPrefix: kind == .applescript ? "--" : "#")
         add(
-            Automation(id: id, kind: kind, source: .file(url), metadata: parsed.metadata),
+            Automation(id: id, kind: kind, source: .file(url), metadata: parsed.metadata, collection: collection),
             diagnostics: parsed.diagnostics,
             file: url
         )
@@ -124,7 +169,8 @@ private struct Loader {
                 id: id,
                 kind: kind,
                 source: .folder(folder, entry: entry),
-                metadata: parsed.metadata
+                metadata: parsed.metadata,
+                collection: collection
             ),
             diagnostics: parsed.diagnostics,
             file: manifestURL

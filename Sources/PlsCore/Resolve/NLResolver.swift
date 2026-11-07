@@ -148,14 +148,18 @@ public struct NLResolver: Sendable {
         return try GenerationSchema(root: root, dependencies: [])
     }
 
-    /// Routes over the shortlist for `request`, then over every candidate if nothing in it fits: the shortlist ranks by
-    /// meaning alone, so the right automation can fall just outside it.
+    /// Routes over the shortlist for `request`, then over the wider fallback if nothing in it fits: the shortlist ranks
+    /// by meaning alone, so the right automation can fall just outside it.
     private func route(_ request: String, shortlisting candidates: [Automation]) async throws -> Automation? {
         let shortlist = Shortlist.candidates(for: request, among: candidates)
         if let picked = try await route(request, among: shortlist) {
             return picked
         }
-        return shortlist.count < candidates.count ? try await route(request, among: candidates) : nil
+        guard shortlist.count < candidates.count else { return nil }
+        return try await route(
+            request,
+            among: Shortlist.closest(Shortlist.fallbackSize, to: request, among: candidates)
+        )
     }
 
     private func route(_ request: String, among candidates: [Automation]) async throws -> Automation? {
@@ -265,9 +269,11 @@ public struct RoutingBudget: Equatable, Sendable {
 
     /// What to tell the user once the routing list leaves little room for the request and the answer; nil until then.
     public var warning: String? {
-        if tokens > contextSize {
+        // A shortlisted request reads at most the fallback's closest automations, about their share of the tokens.
+        let read = isShortlisted ? tokens * min(Shortlist.fallbackSize, automations) / automations : tokens
+        return if read > contextSize {
             "the routing list is bigger than the model's context, so requests will fail; describe fewer automations"
-        } else if tokens * 4 >= contextSize * 3 {
+        } else if read * 4 >= contextSize * 3 {
             "the routing list uses most of the model's context; requests may fail as the library grows"
         } else {
             nil

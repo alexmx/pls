@@ -16,6 +16,9 @@ struct ShowCommand: ParsableCommand {
         }
         print()
         print("  kind     \(automation.kind.rawValue)")
+        if let collection = automation.collection {
+            print("  from     \(collection)")
+        }
         print("  source   \(displayPath(automation.sourceURL))")
         if case .folder = automation.source {
             print("  script   \(automation.script.lastPathComponent)")

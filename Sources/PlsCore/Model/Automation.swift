@@ -28,9 +28,13 @@ public struct Automation: Sendable, Equatable {
         case folder(URL, entry: URL)
     }
 
-    public let id: String
+    /// Unique in the library: the file or folder name, or `owner/repo/<name>` for a collection's automation whose
+    /// name is also used by your own automations or another collection.
+    public private(set) var id: String
     public let kind: AutomationKind
     public let source: Source
+    /// The collection it was installed from, `owner/repo`; nil for your own automations.
+    public let collection: String?
     public let name: String
     public let description: String?
     public let params: [Param]
@@ -39,10 +43,11 @@ public struct Automation: Sendable, Equatable {
     public let background: Bool
     public let preview: Bool
 
-    public init(id: String, kind: AutomationKind, source: Source, metadata: Metadata) {
+    public init(id: String, kind: AutomationKind, source: Source, metadata: Metadata, collection: String? = nil) {
         self.id = id
         self.kind = kind
         self.source = source
+        self.collection = collection
         self.name = metadata.name ?? Self.defaultName(for: id)
         self.description = metadata.description
         self.params = metadata.params
@@ -50,6 +55,23 @@ public struct Automation: Sendable, Equatable {
         self.confirm = metadata.confirm
         self.background = metadata.background
         self.preview = metadata.preview
+    }
+
+    /// `owner/repo/<name>` for a collection's automation, which always finds it; the id for your own.
+    public var qualifiedID: String {
+        collection.map { "\($0)/\(name(of: id))" } ?? id
+    }
+
+    /// The name part of an id: `kill-port` from `alexmx/tools/kill-port`.
+    private func name(of id: String) -> String {
+        id.split(separator: "/").last.map(String.init) ?? id
+    }
+
+    /// The same automation known by `id`.
+    func with(id: String) -> Automation {
+        var copy = self
+        copy.id = id
+        return copy
     }
 
     /// The file or folder the automation was loaded from.

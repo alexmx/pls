@@ -30,6 +30,9 @@ Workflow: main
 - Child processes go through swift-subprocess, in the app and the tests, never Foundation's `Process`
 - `Tests/PlsCoreTests/`: Swift Testing; every top-level suite has `@Suite(.timeLimit(.minutes(1)))` (lint-enforced)
 - `skills/use-pls/SKILL.md`: the agent skill, embedded into `PlsCore` through the `Resources/SKILL.md` symlink
+- Collections (`pls collection`): GitHub repos with an `automations/` folder, cloned into
+  `<home>/collections/<owner>/<repo>` (`CollectionStore`), loaded after your own automations by `Library`. Tests use
+  local git repos as the clone source, never the network
 - `examples/home/`: sample library (each automation format, plus a Shortcut wrapper); doubles as format documentation
 
 ## Conventions

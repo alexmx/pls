@@ -67,6 +67,7 @@ struct PlsCommand: ParsableCommand {
             AgainCommand.self,
             HistoryCommand.self,
             JobsCommand.self,
+            CollectionCommand.self,
             DoctorCommand.self,
             CompletionCommand.self,
             SkillCommand.self
@@ -97,6 +98,10 @@ extension Library {
     /// The automation with `id`, or a printed explanation and exit 65.
     func require(_ id: String) throws -> Automation {
         guard let automation = automation(id: id) else {
+            if let names = ambiguousIDs[id] {
+                printError("pls: several collections have \(id); use one of \(names.joined(separator: ", "))")
+                throw Exit.notFound
+            }
             printError(leftOutIDs.contains(id)
                 ? "pls: \(id) has problems that keep it from loading; run `pls doctor`"
                 : "pls: no automation with id \(id); run `pls list` to see them")

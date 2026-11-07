@@ -32,7 +32,14 @@ struct ListCommand: ParsableCommand {
             print("No automations yet. Add scripts to \(displayPath(library.automationsDirectory)).")
             return
         }
-        let rows = library.automations.map { [$0.id, $0.kind.rawValue, $0.description ?? "(no description)"] }
+        let rows = library.automations.map { automation in
+            [
+                automation.id,
+                automation.kind.rawValue,
+                (automation.description ?? "(no description)")
+                    + (automation.collection.map { "  (\($0))" } ?? "")
+            ]
+        }
         table(rows).forEach { print($0) }
     }
 }
@@ -63,6 +70,8 @@ struct AutomationJSON: Encodable {
     /// Asks only when `param` has one of `choices`.
     let confirmWhen: ConfirmWhenJSON?
     let background: Bool
+    /// The collection it's installed from, owner/repo; absent for your own.
+    let collection: String?
     let preview: Bool
     let examples: [String]
     let params: [ParamJSON]
@@ -83,6 +92,7 @@ struct AutomationJSON: Encodable {
             )
         }
         self.background = automation.background
+        self.collection = automation.collection
         self.preview = automation.preview
         self.examples = automation.examples
         self.params = automation.params.map { param in

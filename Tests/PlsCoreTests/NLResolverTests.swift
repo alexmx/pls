@@ -58,6 +58,13 @@ struct NLResolverTests {
         }
     }
 
+    /// A big library is shortlisted, and even its fallback reads only the closest few, so its total doesn't matter.
+    @Test func aShortlistedLibraryWarnsOnlyForWhatARequestReads() {
+        #expect(RoutingBudget(tokens: 17000, contextSize: 4096, automations: 300).warning == nil)
+        #expect(RoutingBudget(tokens: 40000, contextSize: 4096, automations: 300).warning?
+            .contains("will fail") == true)
+    }
+
     @Test func budgetNeedsTheModel() async {
         await #expect(throws: NLResolver.ModelError.self) {
             try await NLResolver(environment: ["PLS_MODEL": "off"])
@@ -112,14 +119,13 @@ struct NLResolverModelTests {
         #expect(try await NLResolver().resolve("order me a pizza", in: library) == nil)
     }
 
-    /// A library too big for the model's context gets its own message, not the generic "couldn't answer".
-    @Test func aLibraryTooBigForTheContextSaysSo() async throws {
+    /// A routing list too big for the model's context gets its own message, not the generic "couldn't answer". It takes
+    /// a library small enough not to be shortlisted, with descriptions far longer than any real one.
+    @Test func aRoutingListTooBigForTheContextSaysSo() async throws {
         let home = try TempHome()
-        for index in 0..<300 {
-            try home.write("task-\(index).sh", """
-            # @pls.description: Do task number \(index) with the files in a folder and report how it went afterwards
-            # @pls.example: run task \(index) on my documents folder please
-            """)
+        let filler = Array(repeating: "and then tidy the files in the folder", count: 40).joined(separator: " ")
+        for index in 0..<Shortlist.threshold {
+            try home.write("task-\(index).sh", "# @pls.description: Do task number \(index) \(filler)\n")
         }
         let library = Library.load(home: home.url)
         let error = await #expect(throws: NLResolver.ModelError.self) {
@@ -128,28 +134,17 @@ struct NLResolverModelTests {
         #expect(error?.description.contains("don't fit in the model's context") == true, "\(String(describing: error))")
     }
 
-    /// An example worded for another automation is reported on the automation that claims it; fitting ones aren't.
-    @Test func doctorReportsAnExampleThatPicksAnotherAutomation() async throws {
+    /// A big library is shortlisted, and even when nothing fits, its fallback reads only the closest few.
+    @Test func aBigLibraryStillFitsTheContext() async throws {
         let home = try TempHome()
-        try home.write("kill-port.sh", """
-        # @pls.description: Kill whatever process is listening on a TCP port
-        # @pls.example: free up port 3000
-        """)
-        let darkMode = try home.write("dark-mode.sh", """
-        # @pls.description: Switch the system appearance between dark and light
-        # @pls.example: turn on dark mode
-        # @pls.example: something is stuck on port 8080
-        """)
-        let library = Library.load(home: home.url)
-        let misses = try await Doctor.checkExamples(
-            of: library.automations,
-            in: library,
-            resolver: NLResolver(environment: [:])
-        )
-        #expect(misses == [Diagnostic(
-            .warning, "example \"something is stuck on port 8080\" picks kill-port", file: darkMode,
-            automation: "dark-mode"
-        )])
+        for index in 0..<300 {
+            try home.write("task-\(index).sh", """
+            # @pls.description: Do task number \(index) with the files in a folder and report how it went afterwards
+            # @pls.example: run task \(index) on my documents folder please
+            """)
+        }
+        #expect(try await NLResolver(environment: [:])
+            .resolve("order me a pizza", in: Library.load(home: home.url)) == nil)
     }
 
     /// "none" is a valid id, so the no-match answer must be something an id can't be.

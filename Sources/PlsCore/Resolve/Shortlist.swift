@@ -8,12 +8,20 @@ public enum Shortlist {
     public static let threshold = 30
     /// How many automations a shortlist keeps.
     public static let size = 10
+    /// How many the fallback reads when nothing in the shortlist fits: enough to recover a near miss, few enough for
+    /// the model's context however big the library gets (all of them took about 57 tokens each).
+    public static let fallbackSize = 40
 
-    /// The `size` automations whose description or examples are closest to `request`, in their original order; all of
-    /// them when there are `threshold` or fewer, or when the request is clearly in another language (the sentence
-    /// embedding is English only), or the embedding isn't available.
+    /// The `size` automations whose description or examples are closest to `request` (see `closest`), or all of them
+    /// when there are `threshold` or fewer. The sentence embedding is English only.
     static func candidates(for request: String, among automations: [Automation]) -> [Automation] {
-        guard automations.count > threshold,
+        automations.count > threshold ? closest(size, to: request, among: automations) : automations
+    }
+
+    /// The `count` automations closest to `request`, in their original order; all of them when there are no more, or
+    /// when the request is clearly in another language, or the embedding isn't available.
+    static func closest(_ count: Int, to request: String, among automations: [Automation]) -> [Automation] {
+        guard automations.count > count,
               !isClearlyNotEnglish(request),
               let embedding = NLEmbedding.sentenceEmbedding(for: .english),
               let wanted = embedding.vector(for: request)
@@ -24,7 +32,7 @@ public enum Shortlist {
                 .map { cosineDistance(wanted, $0) }
                 .min() ?? .infinity
         }
-        let kept = Set(automations.indices.sorted { distances[$0] < distances[$1] }.prefix(size))
+        let kept = Set(automations.indices.sorted { distances[$0] < distances[$1] }.prefix(count))
         return automations.indices.filter(kept.contains).map { automations[$0] }
     }
 

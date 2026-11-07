@@ -28,7 +28,10 @@ let package = Package(
                 "PlsCore", "CEditLine", .product(name: "ArgumentParser", package: "swift-argument-parser")
             ]
         ),
-        .testTarget(name: "PlsCoreTests", dependencies: ["PlsCore", "Yams"]),
+        .testTarget(
+            name: "PlsCoreTests",
+            dependencies: ["PlsCore", "Yams", .product(name: "Subprocess", package: "swift-subprocess")]
+        ),
         .testTarget(
             name: "PlsTests", dependencies: ["pls", .product(name: "Subprocess", package: "swift-subprocess")]
         ),

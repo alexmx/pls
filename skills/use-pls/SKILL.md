@@ -99,8 +99,8 @@ params:
     description: Which image type to compress
 ```
 
-Also `background: true`, `preview: true`, `confirm: true` (or `confirm: {action: [shutdown, restart]}` to ask only for those values), `optional: true` on
-a param, and `kind: shell | applescript` (only needed when the entry's
+Also `background: true`, `preview: true`, `confirm: true` (or `confirm: {action: [shutdown, restart]}` to ask only
+for those values), `optional: true` on a param, and `kind: shell | applescript` (only needed when the entry's
 extension doesn't say: `.applescript` and `.scpt` are AppleScript, anything else is shell). The entry file needs no
 header. Its folder is in `$PLS_AUTOMATION_DIR`, for reaching the files next to it.
 
@@ -155,7 +155,8 @@ That's all it knows, so:
   reliably than free `string`s, so use `enum` for any fixed set of choices and give ranges to numbers. Give a
   default whenever a sensible one exists: a request without that value then still runs, where otherwise the model
   tends to make a value up. Describe each param with its unit or meaning ("How long, in minutes; 0 means until
-  turned off"), since the description is how the model maps the user's words to it. Pick enum options that are words a user would say (`dark|light|toggle`).
+  turned off"), since the description is how the model maps the user's words to it. Pick enum options that are
+  words a user would say (`dark|light|toggle`).
 - Leave the id, name and description free of jargon the user wouldn't use.
 
 ## Script conventions
@@ -182,6 +183,14 @@ That's all it knows, so:
   fi`. A preview has no input and should be quick. Without the key, pls never runs the script for a dry run.
 - Prefer writing results next to the input over overwriting it (compressed copies go in `<folder>/compressed`).
 - Don't hardcode the user's paths or their home; take a `path` param with a `~/…` default instead.
+
+## Sharing them as a collection
+
+To share automations, put them in a GitHub repo with an `automations/` folder at its root, in either format, exactly
+as in a library. Others install it with `pls collection add <owner>/<repo>`, and `pls collection update` pulls your
+changes. Each automation must stand on its own: no paths into your home folder, no files outside its own folder,
+and the description and examples written for anyone's library, since they'll route among other people's
+automations.
 
 ## Shortcuts
 
