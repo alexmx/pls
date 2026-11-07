@@ -21,9 +21,9 @@ commands:
   lint:
     run: "swiftlint lint --quiet --strict"
 
-  # Run before every commit.
+  # Run before every commit. Stops at the first failing step; `xc verify --continue` runs them all.
   verify:
-    run: "xc format:check && xc lint && xc build && xc test"
+    steps: [format:check, lint, build, test]
 
   # How well the model picks and fills (needs Apple Intelligence; ~1 min). Example: xc evals -- dark
   evals:
