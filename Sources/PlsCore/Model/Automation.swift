@@ -35,26 +35,42 @@ public struct Automation: Sendable, Equatable {
     public let source: Source
     /// The collection it was installed from, `owner/repo`; nil for your own automations.
     public let collection: String?
+    /// What its header or manifest declares; the properties below read it.
+    public let metadata: Metadata
+    /// The declared name, or the id in words; from the id it was loaded with, before any `owner/repo/` was added.
     public let name: String
-    public let description: String?
-    public let params: [Param]
-    public let examples: [String]
-    public let confirm: Confirmation
-    public let background: Bool
-    public let preview: Bool
+
+    public var description: String? {
+        metadata.description
+    }
+
+    public var params: [Param] {
+        metadata.params
+    }
+
+    public var examples: [String] {
+        metadata.examples
+    }
+
+    public var confirm: Confirmation {
+        metadata.confirm
+    }
+
+    public var background: Bool {
+        metadata.background
+    }
+
+    public var preview: Bool {
+        metadata.preview
+    }
 
     public init(id: String, kind: AutomationKind, source: Source, metadata: Metadata, collection: String? = nil) {
         self.id = id
         self.kind = kind
         self.source = source
         self.collection = collection
+        self.metadata = metadata
         self.name = metadata.name ?? Self.defaultName(for: id)
-        self.description = metadata.description
-        self.params = metadata.params
-        self.examples = metadata.examples
-        self.confirm = metadata.confirm
-        self.background = metadata.background
-        self.preview = metadata.preview
     }
 
     /// `owner/repo/<name>` for a collection's automation, which always finds it; the id for your own.
