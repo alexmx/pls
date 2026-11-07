@@ -47,6 +47,7 @@ pls again                                   # the last run, with the same values
 pls list                                    # your automations
 pls show compress-images                    # one in detail
 pls history                                 # recent runs
+pls jobs                                    # automations running in the background; pls jobs stop <id> ends one
 pls doctor                                  # check your automations, and whether the model can be used
 ```
 

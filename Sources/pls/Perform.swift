@@ -66,9 +66,17 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
         planLines(binding).forEach { print($0) }
         if binding.missing.isEmpty {
             invocationLines(Invocation(binding)).forEach { print($0) }
+            if automation.background {
+                print("  runs in the background")
+            }
         } else {
             print("\n  pls would ask for \(binding.missing.map(\.name).joined(separator: ", ")) first.")
         }
+        return
+    }
+
+    if automation.background {
+        try await start(binding, via: trigger)
         return
     }
 
@@ -88,5 +96,29 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
     }
     if outcome.status != 0 {
         throw ExitCode(outcome.status)
+    }
+}
+
+/// Starts a background automation and says what it printed first and how to stop it.
+@MainActor
+private func start(_ binding: Binding, via trigger: HistoryEntry.Trigger) async throws {
+    let started: Runner.Started
+    do {
+        started = try await Runner.start(binding, via: trigger)
+    } catch {
+        printError("pls: \(error)")
+        throw Exit.cannotRun
+    }
+    if !started.output.isEmpty {
+        print(started.output)
+        // Before the hint below, which goes to unbuffered stderr.
+        fflush(stdout)
+    }
+    let id = binding.automation.id
+    if started.job.isRunning {
+        printError("Running in the background; `pls jobs stop \(id)` ends it.")
+    }
+    if let historyError = started.historyError {
+        printError("pls: warning: \(historyError)")
     }
 }

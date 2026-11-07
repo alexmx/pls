@@ -66,6 +66,7 @@ struct PlsCommand: ParsableCommand {
             RunCommand.self,
             AgainCommand.self,
             HistoryCommand.self,
+            JobsCommand.self,
             DoctorCommand.self,
             CompletionCommand.self,
             SkillCommand.self

@@ -74,6 +74,12 @@ public enum HeaderParser {
                 }
                 result.metadata.confirm = confirm
                 confirmLine = lineNumber
+            case "background":
+                guard let flag = Bool(value) else {
+                    report(.error, "@pls.background must be true or false")
+                    continue
+                }
+                result.metadata.background = flag
             default:
                 report(.warning, "unknown key @pls.\(key)")
             }

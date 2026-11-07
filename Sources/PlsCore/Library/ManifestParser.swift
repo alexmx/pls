@@ -63,6 +63,12 @@ public enum ManifestParser {
                     }
                     result.metadata.confirm = confirm
                     confirmNode = value
+                case "background":
+                    guard let flag = strictBool(value) else {
+                        error("background must be true or false", at: value)
+                        continue
+                    }
+                    result.metadata.background = flag
                 case "examples": result.metadata.examples = texts(value, key) ?? []
                 case "params": readParams(value)
                 default: warning("unknown key \(key)", at: keyNode)

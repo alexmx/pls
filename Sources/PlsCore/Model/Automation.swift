@@ -12,6 +12,8 @@ public struct Metadata: Sendable, Equatable {
     public var params: [Param] = []
     public var examples: [String] = []
     public var confirm = Confirmation.never
+    /// Runs detached, as a job (`JobStore`), instead of holding the terminal until it ends.
+    public var background = false
 
     public init() {}
 }
@@ -32,6 +34,7 @@ public struct Automation: Sendable, Equatable {
     public let params: [Param]
     public let examples: [String]
     public let confirm: Confirmation
+    public let background: Bool
 
     public init(id: String, kind: AutomationKind, source: Source, metadata: Metadata) {
         self.id = id
@@ -42,6 +45,7 @@ public struct Automation: Sendable, Equatable {
         self.params = metadata.params
         self.examples = metadata.examples
         self.confirm = metadata.confirm
+        self.background = metadata.background
     }
 
     /// The file or folder the automation was loaded from.

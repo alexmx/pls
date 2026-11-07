@@ -26,6 +26,9 @@ struct ShowCommand: ParsableCommand {
         case let .when(param, choices): "asks before running when \(param) is \(choices.joined(separator: " or "))"
         }
         print("  confirm  \(confirm)")
+        if automation.background {
+            print("  runs     in the background (`pls jobs` lists it)")
+        }
 
         if !automation.params.isEmpty {
             print("\nParams")

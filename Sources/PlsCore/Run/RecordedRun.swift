@@ -30,4 +30,35 @@ extension Runner {
             return Outcome(status: status, historyError: error)
         }
     }
+
+    /// How starting a background automation went.
+    public struct Started: Sendable {
+        public let job: JobStore.Job
+        /// The first line the job printed (see `JobStore.start`).
+        public let output: String
+        public let historyError: HistoryStore.WriteError?
+    }
+
+    /// Starts `binding` as a background job, replacing its running one, and records the start in `history`: its
+    /// exit status isn't known yet, so it's recorded as 0.
+    public static func start(
+        _ binding: Binding,
+        via trigger: HistoryEntry.Trigger,
+        history: HistoryStore = HistoryStore(),
+        jobs: JobStore = JobStore(),
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) async throws(LaunchError) -> Started {
+        let started = Date()
+        let (job, output) = try await jobs.start(
+            Invocation(binding),
+            id: binding.automation.id,
+            environment: environment
+        )
+        do {
+            try history.append(HistoryEntry(binding, via: trigger, exit: 0, seconds: 0, at: started))
+            return Started(job: job, output: output, historyError: nil)
+        } catch {
+            return Started(job: job, output: output, historyError: error)
+        }
+    }
 }
