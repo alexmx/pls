@@ -59,7 +59,8 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
         try Prompt.fillMissing(&binding)
     }
     if asksFirst(binding) {
-        guard try await Prompt.review(&binding, preview: previewOutput) else { throw Exit.cancelled }
+        // No is a choice, so pls exits 0 without running it.
+        guard try await Prompt.review(&binding, preview: previewOutput) else { return }
     }
 
     if dryRun {

@@ -20,7 +20,7 @@ enum Prompt {
     }
 
     /// Shows the plan, with what `preview` says the run would do, and asks "Run?" (Enter or y runs it). `e` edits
-    /// each value in turn, then shows both again. Returns false if the answer is no; Ctrl-D while editing cancels.
+    /// each value in turn, then shows both again. Returns false if the answer is no; Ctrl-D cancels.
     /// On yes, everything shown since the plan is replaced with one summary line where the terminal allows it.
     @MainActor
     static func review(_ binding: inout Binding, preview: (Binding) async -> [String]) async throws -> Bool {
@@ -42,7 +42,8 @@ enum Prompt {
             let answer = ask(question)
             record(question + (answer ?? ""))
             switch answer?.trimmingCharacters(in: .whitespaces).lowercased() {
-            case nil, "n", "no": return false
+            case nil: throw Exit.cancelled
+            case "n", "no": return false
             case "", "y", "yes":
                 replace(shown, with: summaryLine(binding, style: style))
                 return true

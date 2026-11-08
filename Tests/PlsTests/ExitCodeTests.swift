@@ -88,7 +88,12 @@ struct ExitCodeTests {
         #expect(try await pls.run("run", "no-interpreter").status == 126)
     }
 
-    @Test func answeringNoAtTheQuestionIs130() async throws {
-        #expect(try await pls.runInTerminal(["run", "careful"], typing: "n\n", after: "Run?").status == 130)
+    /// No is an answer, not a failure; only backing out (Ctrl-D, Ctrl-C) is.
+    @Test func answeringNoAtTheQuestionIs0() async throws {
+        #expect(try await pls.runInTerminal(["run", "careful"], typing: "n\n", after: "Run?").status == 0)
+    }
+
+    @Test func ctrlDAtTheQuestionIs130() async throws {
+        #expect(try await pls.runInTerminal(["run", "careful"], typing: "\u{04}", after: "Run?").status == 130)
     }
 }

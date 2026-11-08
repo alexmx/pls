@@ -86,7 +86,7 @@ enum Exit {
     static let modelUnavailable = ExitCode(69)
     /// The script couldn't be started, e.g. its shebang's interpreter doesn't exist.
     static let cannotRun = ExitCode(126)
-    /// Cancelled at a prompt.
+    /// Cancelled at a prompt with Ctrl-D or Ctrl-C; answering no at "Run?" exits 0.
     static let cancelled = ExitCode(130)
 }
 
