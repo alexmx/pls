@@ -46,19 +46,23 @@ public struct Library: Sendable {
         var installed: [Automation] = []
         for collection in collections {
             let loaded = Self.automations(inCollection: collection.source, store: store)
-            let approved = loaded.automations.filter(collection.isApproved)
-            let approvedIDs = Set(approved.map(\.id))
-            diagnostics += loaded.diagnostics.filter { $0.automationID.map(approvedIDs.contains) ?? true }
-            for changed in loaded.automations
-                where collection.approved[changed.id] != nil && !approvedIDs.contains(changed.id) {
-                diagnostics.append(Diagnostic(
-                    .warning,
-                    "changed since you approved it, so it's off; `pls collection review \(collection.source)` shows it",
-                    file: changed.declarationURL,
-                    automation: changed.id
-                ))
+            // Problems are yours once you approved it, even when they keep it from loading now.
+            diagnostics += loaded.diagnostics.filter { $0.automationID.map { collection.approved[$0] != nil } ?? true }
+            for automation in loaded.automations {
+                switch collection.state(of: automation) {
+                case .on:
+                    installed.append(automation)
+                case .changed:
+                    diagnostics.append(Diagnostic(
+                        .warning,
+                        "changed since you approved it, so it's off; `pls collection review \(collection.source)` shows it",
+                        file: automation.declarationURL,
+                        automation: automation.id
+                    ))
+                case .off:
+                    break
+                }
             }
-            installed += approved
         }
         // Your own automations keep their ids; a collection's keeps its short id unless your library or another
         // collection uses it too, and is then known by `owner/repo/<id>`.
@@ -223,10 +227,32 @@ private struct Loader {
         } else if let other = seen[automation.id] {
             found.append(Diagnostic(.error, "id \(automation.id) is already used by \(other.lastPathComponent)"))
         }
+        if collection != nil, let outside = Self.outsideFile(of: automation) {
+            found.append(Diagnostic(
+                .error,
+                "uses \(outside), outside its own folder, so reviewing it wouldn't show everything it runs"
+            ))
+        }
         report(found, file: file, id: automation.id)
         guard !found.contains(where: { $0.severity == .error }) else { return }
         seen[automation.id] = source
         automations.append(automation)
+    }
+
+    /// A collection's automation must be made only of its own files, or its review and fingerprint would miss what it
+    /// runs: the first link or entry that leads out of its folder (or a link that is the automation), else nil.
+    static func outsideFile(of automation: Automation) -> String? {
+        let root = automation.sourceURL
+        guard !Fingerprint.isSymlink(root) else { return root.lastPathComponent }
+        guard case let .folder(folder, entry) = automation.source else { return nil }
+        let inside = folder.resolvingSymlinksInPath().path + "/"
+        for file in [entry] + automation.files.filter(Fingerprint.isSymlink) {
+            let target = file.standardizedFileURL.resolvingSymlinksInPath().path
+            if !target.hasPrefix(inside) {
+                return target
+            }
+        }
+        return nil
     }
 
     mutating func report(_ found: [Diagnostic], file: URL, id: String) {

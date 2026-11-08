@@ -3,14 +3,13 @@ import Foundation
 
 /// A SHA-256 of exactly what an automation runs: its file, or every file in its folder, each with its path relative
 /// to the folder, whether it's executable (that decides how pls runs a script) and its bytes. A symlink counts as its
-/// target path. Approving a collection's automation records this, so a change by any route turns it off again.
-enum Fingerprint {
-    static func of(_ automation: Automation) -> String {
-        let root = automation.sourceURL
+/// target path; a collection's automation can only link within its own folder, so the target is hashed too. Approving
+/// a collection's automation records this, so a change by any route turns it off again.
+public enum Fingerprint {
+    public static func of(_ automation: Automation) -> String {
         var hash = SHA256()
         for file in automation.files {
-            let path = file.path.hasPrefix(root.path + "/") ? String(file.path.dropFirst(root.path.count + 1)) : file
-                .lastPathComponent
+            let path = automation.relativePath(of: file)
             hash
                 .update(
                     data: Data(

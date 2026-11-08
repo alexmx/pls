@@ -205,9 +205,9 @@ as in a library. Others install it with `pls collection add <owner>/<repo>`, and
 changes. Everything starts off: they read each automation before turning it on, and again after any change, with
 warnings for deleting files, `sudo`, downloaded code, sending data out, reading secrets, starting itself later and
 encoded commands. So keep scripts short and plain enough to review, ask before anything destructive, and ship no
-compiled `.scpt` or binaries, which can't be read. Each automation must stand on its own: no paths into your home folder, no files outside its own folder,
-and the description and examples written for anyone's library, since they'll route among other people's
-automations.
+compiled `.scpt` or binaries, which can't be read. Each automation must stand on its own: no paths into your home
+folder, no files outside its own folder (pls won't load one whose entry or links lead out of it), and the description
+and examples written for anyone's library, since they'll route among other people's automations.
 
 ## Shortcuts
 

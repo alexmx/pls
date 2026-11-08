@@ -28,9 +28,7 @@ struct CollectionCommand: ParsableCommand {
             for (index, collection) in collections.enumerated() {
                 print((index == 0 ? "" : "\n") + collection.source)
                 for automation in store.automations(of: collection.source) {
-                    let state = collection.isApproved(automation) ? "on"
-                        : collection.approved[automation.id] != nil ? "changed" : "off"
-                    print("  " + state.padded(to: 7) + "  " + automation.id)
+                    print("  " + collection.state(of: automation).rawValue.padded(to: 7) + "  " + automation.id)
                 }
             }
         }
@@ -115,7 +113,17 @@ struct CollectionCommand: ParsableCommand {
                     parts.append("removed \(changes.removed.joined(separator: ", "))")
                 }
                 print("\(changes.source): " + (parts.isEmpty ? "up to date" : parts.joined(separator: "; ")))
-                let pending = store.pending(of: changes.source)
+                // Asks about what's new or changed; what you left off before stays off quietly, for
+                // `pls collection review`.
+                guard let collection = store.installed().first(where: { $0.source == changes.source }) else { continue }
+                let touched = Set(changes.added + changes.changed)
+                let pending = store.automations(of: changes.source).filter { automation in
+                    switch collection.state(of: automation) {
+                    case .on: false
+                    case .changed: true
+                    case .off: touched.contains(automation.id)
+                    }
+                }
                 if !pending.isEmpty {
                     print("\(off(pending.count)) until approved.")
                     try review(pending, of: changes.source, store: store)
@@ -168,13 +176,14 @@ struct CollectionCommand: ParsableCommand {
                 printError("pls: approving shows the script and asks; run this in a terminal")
                 throw Exit.usage
             }
+            let fingerprint = CollectionStore.fingerprints(of: [automation])
             show(automation, ScriptWarnings.of(automation), position: source)
             guard Prompt.ask("  Turn on \(automation.id)? [y/N] ")?.trimmingCharacters(in: .whitespaces)
                 .lowercased().hasPrefix("y") == true else {
                 print("Left \(automation.id) off.")
                 return
             }
-            try failing { () throws(CollectionStore.Failure) in try store.approve([automation], in: source) }
+            try failing { () throws(CollectionStore.Failure) in try store.approve(fingerprint, in: source) }
             print("Turned on \(source)/\(automation.id).")
         }
     }

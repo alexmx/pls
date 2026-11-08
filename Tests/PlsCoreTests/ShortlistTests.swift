@@ -6,8 +6,8 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 struct ShortlistTests {
     /// `count` automations: filler ones, with a port killer among them when asked.
-    private func automations(_ count: Int, withPortKiller: Bool = true) throws -> [Automation] {
-        var automations = try (0..<count).map { index in
+    private func automations(_ count: Int, withPortKiller: Bool = true) -> [Automation] {
+        var automations = (0..<count).map { index in
             var metadata = Metadata()
             metadata.description = "Rename the photos in album number \(index) by the date they were taken"
             metadata.examples = ["sort album \(index) by date"]
@@ -35,14 +35,14 @@ struct ShortlistTests {
         return automations
     }
 
-    @Test func aLibraryOfThirtyOrFewerIsKeptWhole() throws {
-        let library = try automations(29)
+    @Test func aLibraryOfThirtyOrFewerIsKeptWhole() {
+        let library = automations(29)
         #expect(Shortlist.candidates(for: "free up port 8080", among: library) == library)
     }
 
     /// The sentence embedding is English only; another language would rank by noise.
-    @Test func aRequestInAnotherLanguageKeepsEveryAutomation() throws {
-        let library = try automations(40)
+    @Test func aRequestInAnotherLanguageKeepsEveryAutomation() {
+        let library = automations(40)
         #expect(Shortlist
             .candidates(for: "Bitte gib den Port achttausend frei, er ist blockiert", among: library) == library)
     }
@@ -61,8 +61,8 @@ struct ShortlistTests {
     }
 
     @Test(.enabled(if: NLEmbedding.sentenceEmbedding(for: .english) != nil))
-    func aBigLibraryIsCutToTheClosestTenInOrder() throws {
-        let library = try automations(40)
+    func aBigLibraryIsCutToTheClosestTenInOrder() {
+        let library = automations(40)
         let shortlist = Shortlist.candidates(for: "something is stuck on port 8080, kill it", among: library)
         #expect(shortlist.count == Shortlist.size)
         #expect(shortlist.contains { $0.id == "kill-port" })

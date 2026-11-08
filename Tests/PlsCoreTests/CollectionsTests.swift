@@ -85,7 +85,7 @@ struct CollectionsTests {
     /// Adds `source` and approves everything in it, as answering "a" at the review does.
     private func addApproved(_ source: String) async throws {
         try await store.add(source)
-        try store.approve(store.automations(of: source), in: source)
+        try store.approve(CollectionStore.fingerprints(of: store.automations(of: source)), in: source)
     }
 
     @Test func addingLeavesEverythingOff() async throws {
@@ -104,7 +104,7 @@ struct CollectionsTests {
             ["automations/wifi.sh": automation("Wifi"), "automations/mute.sh": automation("Mute")]
         )
         let pending = try await store.add("alexmx/tools")
-        try store.approve(pending.filter { $0.id == "wifi" }, in: "alexmx/tools")
+        try store.approve(CollectionStore.fingerprints(of: pending.filter { $0.id == "wifi" }), in: "alexmx/tools")
         let library = Library.load(home: home.url)
         #expect(library.automations.map(\.id) == ["wifi"])
         #expect(library.automations.allSatisfy { $0.collection == "alexmx/tools" })
@@ -148,7 +148,7 @@ struct CollectionsTests {
         #expect(library.diagnostics.map(\.message)
             == ["changed since you approved it, so it's off; `pls collection review alexmx/tools` shows it"])
         #expect(store.pending(of: "alexmx/tools").map(\.id) == ["lock", "wifi"])
-        try store.approve(store.pending(of: "alexmx/tools"), in: "alexmx/tools")
+        try store.approve(CollectionStore.fingerprints(of: store.pending(of: "alexmx/tools")), in: "alexmx/tools")
         #expect(Library.load(home: home.url).automation(id: "wifi")?.description == "Wifi v2")
         #expect(try await store.update() == [CollectionStore.Changes(source: "alexmx/tools")])
     }
@@ -237,5 +237,80 @@ struct CollectionsTests {
         #expect(problems
             .map(\.message) == ["the clone of alexmx/tools is missing; run `pls collection add alexmx/tools`"])
         #expect(problems.first?.severity == .error)
+    }
+
+    // MARK: what an automation is made of
+
+    /// A clone of o/r written by hand, installed with nothing approved: `files` by path under its `automations/`.
+    @discardableResult
+    private func cloneByHand(_ files: [String: String]) throws -> URL {
+        let automations = home.url.appending(path: "collections/o/r/automations")
+        for (path, content) in files {
+            let file = automations.appending(path: path)
+            try FileManager.default.createDirectory(
+                at: file.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            try content.write(to: file, atomically: true, encoding: .utf8)
+        }
+        try #"[{"approved": {}, "source": "o/r"}]"#
+            .write(to: home.url.appending(path: "collections.json"), atomically: true, encoding: .utf8)
+        return automations
+    }
+
+    private func link(_ path: String, to target: String, in folder: URL) throws {
+        try FileManager.default.createSymbolicLink(
+            atPath: folder.appending(path: path).path, withDestinationPath: target
+        )
+    }
+
+    /// What's outside an automation's folder isn't shown at review or fingerprinted, so it could change unseen: a
+    /// collection's automation that reaches outside isn't loaded at all.
+    @Test(arguments: ["linked folder", "link out of the folder", "entry out of the folder", "linked file"])
+    func aCollectionsAutomationMustStayInItsFolder(how: String) throws {
+        let manifest = "description: X\nentry: run.sh\n"
+        let automations = try cloneByHand([
+            "../lib/run.sh": "#!/bin/zsh\necho elsewhere\n", "../lib/manifest.yaml": manifest
+        ])
+        switch how {
+        case "linked folder":
+            try link("x", to: "../lib", in: automations)
+        case "link out of the folder":
+            try cloneByHand(["x/manifest.yaml": manifest])
+            try link("x/run.sh", to: "../../lib/run.sh", in: automations)
+        case "entry out of the folder":
+            try cloneByHand(["x/manifest.yaml": "description: X\nentry: ../../lib/run.sh\n"])
+        default:
+            try link("x.sh", to: "../lib/run.sh", in: automations)
+        }
+        let loaded = Library.automations(inCollection: "o/r", store: store)
+        #expect(loaded.automations.isEmpty)
+        #expect(loaded.diagnostics.map(\.message).contains { $0.contains("outside its own folder") })
+    }
+
+    /// A link within the folder is fine: what it points at is part of the automation, so changing it counts.
+    @Test func aLinkWithinTheFolderIsPartOfIt() throws {
+        let automations = try cloneByHand([
+            "x/manifest.yaml": "description: X\nentry: run.sh\n", "x/lib/run.sh": "#!/bin/zsh\necho one\n"
+        ])
+        try link("x/run.sh", to: "lib/run.sh", in: automations)
+        let before = try Fingerprint.of(#require(store.automations(of: "o/r").first))
+        try "#!/bin/zsh\necho two\n".write(
+            to: automations.appending(path: "x/lib/run.sh"), atomically: true, encoding: .utf8
+        )
+        #expect(try Fingerprint.of(#require(store.automations(of: "o/r").first)) != before)
+    }
+
+    /// An update that breaks what you approved says so, rather than the automation just vanishing.
+    @Test func anApprovedAutomationThatBreaksKeepsItsErrors() throws {
+        let automations = try cloneByHand([
+            "x/manifest.yaml": "description: X\nentry: run.sh\n", "x/run.sh": "#!/bin/zsh\n"
+        ])
+        try store.approve(CollectionStore.fingerprints(of: store.automations(of: "o/r")), in: "o/r")
+        try "description: X\nentry: gone.sh\n".write(
+            to: automations.appending(path: "x/manifest.yaml"), atomically: true, encoding: .utf8
+        )
+        let library = Library.load(home: home.url)
+        #expect(library.automations.isEmpty)
+        #expect(library.diagnostics.contains { $0.severity == .error && $0.automationID == "x" })
     }
 }

@@ -113,7 +113,8 @@ lists warnings for lines worth a look (deleting files, `sudo`, running downloade
 secrets, starting itself later, hiding what it does) and asks whether to review: you go through each automation's
 files and turn it on or leave it off, or turn them all on unread. The warnings are hints, not a security check;
 reading the script is what counts. An approval is for the files as you read them (a SHA-256 over them): when an update
-or anything else changes them, the automation is off again until you review it.
+or anything else changes them, the automation is off again until you review it. So that the review shows everything
+an automation runs, pls won't load one whose files, links or entry lead outside its own folder.
 
 A collection is a GitHub repo with an `automations/` folder, laid out like your library; it's cloned into
 `~/.config/pls/collections/<owner>/<repo>` and loads alongside your own automations. When an id is taken, the

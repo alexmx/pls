@@ -14,9 +14,19 @@ public struct CollectionStore: Sendable {
         /// Approved automations by id, each with the fingerprint of what you approved.
         public var approved: [String: String] = [:]
 
-        /// Whether `automation`, loaded with its short id, is approved as it is now.
-        public func isApproved(_ automation: Automation) -> Bool {
-            approved[automation.id] == Fingerprint.of(automation)
+        public enum State: String, Sendable {
+            /// Approved as it is now.
+            case on
+            /// Never approved, or approval withdrawn.
+            case off
+            /// Approved, but its files changed since.
+            case changed
+        }
+
+        /// Where `automation`, loaded with its short id, stands.
+        public func state(of automation: Automation) -> State {
+            guard let fingerprint = approved[automation.id] else { return .off }
+            return fingerprint == Fingerprint.of(automation) ? .on : .changed
         }
     }
 
@@ -85,7 +95,7 @@ public struct CollectionStore: Sendable {
             let on = automations(of: record.source).filter { automation in
                 record.only.map { $0.contains(automation.id) } ?? !(record.disabled ?? []).contains(automation.id)
             }
-            return Collection(source: record.source, approved: approvals(of: on))
+            return Collection(source: record.source, approved: Self.fingerprints(of: on))
         }
         if migrated {
             try? save(collections)
@@ -101,10 +111,12 @@ public struct CollectionStore: Sendable {
     /// `source`'s automations that aren't approved as they are now: new, or changed since you approved them.
     public func pending(of source: String) -> [Automation] {
         guard let collection = installed().first(where: { $0.source == source }) else { return [] }
-        return automations(of: source).filter { !collection.isApproved($0) }
+        return automations(of: source).filter { collection.state(of: $0) != .on }
     }
 
-    private func approvals(of automations: [Automation]) -> [String: String] {
+    /// What approving `automations` as they are now records: each id with its fingerprint. Take it before showing
+    /// them, so what's approved is what was shown even if the files change meanwhile.
+    public static func fingerprints(of automations: [Automation]) -> [String: String] {
         Dictionary(uniqueKeysWithValues: automations.map { ($0.id, Fingerprint.of($0)) })
     }
 
@@ -201,9 +213,10 @@ public struct CollectionStore: Sendable {
         return report
     }
 
-    /// Approves `automations` of `source` as they are now, so they load until they change.
-    public func approve(_ automations: [Automation], in source: String) throws(Failure) {
-        try changeRecord(of: source) { $0.approved.merge(approvals(of: automations)) { $1 } }
+    /// Approves automations of `source` by id with the fingerprint you approved (`fingerprints(of:)`), so each loads
+    /// until it changes.
+    public func approve(_ fingerprints: [String: String], in source: String) throws(Failure) {
+        try changeRecord(of: source) { $0.approved.merge(fingerprints) { $1 } }
     }
 
     /// Withdraws the approval of `id` in `source`, so it doesn't load until approved again.
@@ -236,11 +249,6 @@ public struct CollectionStore: Sendable {
         if (try? FileManager.default.contentsOfDirectory(atPath: owner.path))?.isEmpty == true {
             try? FileManager.default.removeItem(at: owner)
         }
-    }
-
-    /// The ids of `source`'s automations, turned on or not.
-    public func automationIDs(of source: String) -> [String] {
-        Self.ids(in: folder(of: source))
     }
 
     // MARK: helpers

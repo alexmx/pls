@@ -90,12 +90,24 @@ public struct Automation: Sendable, Equatable {
         return copy
     }
 
-    /// Every file it's made of, sorted: its file, or each file in its folder (a symlink counts as a file).
+    /// Every file it's made of, sorted: its file, or each file in its folder. A symlink counts as a file, and is not
+    /// followed; the `.DS_Store` and `._` files Finder leaves don't count.
     public var files: [URL] {
         guard case let .folder(folder, _) = source else { return [sourceURL] }
-        let found = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil)?.allObjects as? [URL]
-        return (found ?? []).filter { !Library.isDirectory($0) || Fingerprint.isSymlink($0) }
-            .sorted { $0.path < $1.path }
+        let paths = (try? FileManager.default.subpathsOfDirectory(atPath: folder.path)) ?? []
+        return paths.filter { path in
+            let name = (path as NSString).lastPathComponent
+            return name != ".DS_Store" && !name.hasPrefix("._")
+        }
+        .map { folder.appending(path: $0) }
+        .filter { !Library.isDirectory($0) || Fingerprint.isSymlink($0) }
+        .sorted { $0.path < $1.path }
+    }
+
+    /// `file`, one of `files`, as a path relative to its folder; just its name for a single-file automation.
+    public func relativePath(of file: URL) -> String {
+        guard case let .folder(folder, _) = source else { return file.lastPathComponent }
+        return String(file.path.dropFirst(folder.path.count + 1))
     }
 
     /// The file or folder the automation was loaded from.

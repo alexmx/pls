@@ -53,4 +53,23 @@ struct FingerprintTests {
         )
         #expect(try print("folder") != before)
     }
+
+    /// Opening the folder in Finder, to read the scripts, mustn't turn the automation off.
+    @Test(arguments: [".DS_Store", "._run.sh"])
+    func finderFilesDontCount(file: String) throws {
+        let before = try print("folder")
+        try home.write("folder/\(file)", "\u{0}\u{1}")
+        #expect(try print("folder") == before)
+    }
+
+    /// Paths are relative to the automation's folder, so the same files give the same fingerprint wherever they are,
+    /// even through a linked home (dotfiles managers make `~/.config` one).
+    @Test func aLinkedHomeGivesTheSameFingerprint() throws {
+        let linked = home.url.deletingLastPathComponent().appending(path: "linked-\(UUID().uuidString)")
+        try FileManager.default.createSymbolicLink(at: linked, withDestinationURL: home.url)
+        defer { try? FileManager.default.removeItem(at: linked) }
+        let through = try #require(Library.load(home: linked).automation(id: "folder"))
+        #expect(try Fingerprint.of(through) == print("folder"))
+        #expect(through.files.map(through.relativePath(of:)) == ["helper.sh", "manifest.yaml", "run.sh"])
+    }
 }

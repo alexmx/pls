@@ -55,23 +55,15 @@ public enum ScriptWarnings {
 
     /// The warnings for every file `automation` runs: its file, or each in its folder.
     public static func of(_ automation: Automation) -> [ScriptWarning] {
-        let folder: URL? = if case .folder = automation.source {
-            automation.sourceURL
-        } else {
-            nil
-        }
-        return automation.files.flatMap { warnings(in: $0, folder: folder) }
+        automation.files.flatMap(warnings(in:))
     }
 
-    private static func warnings(in file: URL, folder: URL?) -> [ScriptWarning] {
+    private static func warnings(in file: URL) -> [ScriptWarning] {
         func unreadable(_ why: String) -> [ScriptWarning] {
             [ScriptWarning(concern: "can't be read", file: file, line: nil, text: why)]
         }
+        // A collection's automation links only within its own folder, where the target is read in its own right.
         if Fingerprint.isSymlink(file) {
-            let target = file.resolvingSymlinksInPath().path
-            guard let folder, target.hasPrefix(folder.resolvingSymlinksInPath().path + "/") else {
-                return unreadable("a link to \(target), outside the automation")
-            }
             return []
         }
         if file.pathExtension == "scpt" {

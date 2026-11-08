@@ -28,23 +28,27 @@ func review(_ pending: [Automation], of source: String, store: CollectionStore) 
     case nil, "n", "no":
         print("Left \(count) off; `pls collection review \(source)` turns \(count) on later.")
     case "a", "all":
-        try approve(pending, of: source, store: store)
+        try approve(CollectionStore.fingerprints(of: pending), of: source, store: store)
         print("Turned on all \(pending.count) without review.")
     default:
         var approved = 0
         walk: for (index, (automation, warnings)) in warned.enumerated() {
+            let fingerprint = CollectionStore.fingerprints(of: [automation])
             show(automation, warnings, position: "\(index + 1)/\(warned.count)")
             while true {
                 switch Prompt.ask("  Turn on \(automation.id)? [y/N/a/q] ")?.trimmingCharacters(in: .whitespaces)
                     .lowercased() {
                 case "y", "yes":
-                    try approve([automation], of: source, store: store)
+                    try approve(fingerprint, of: source, store: store)
                     approved += 1
                 case "", "n", "no":
                     break
                 case "a", "all":
                     let rest = Array(warned[index...].map(\.0))
-                    try approve(rest, of: source, store: store)
+                    // This one as shown; the rest as they are, unread.
+                    try approve(
+                        CollectionStore.fingerprints(of: rest).merging(fingerprint) { $1 }, of: source, store: store
+                    )
                     approved += rest.count
                     break walk
                 case nil, "q", "quit":
@@ -68,9 +72,8 @@ func show(_ automation: Automation, _ warnings: [ScriptWarning], position: Strin
     for warning in warnings {
         print("   ⚠ " + describe(warning, in: automation))
     }
-    let folder = automation.sourceURL.deletingLastPathComponent().path + "/"
     for file in automation.files {
-        print("\n   \(file.path.replacing(folder, with: ""))")
+        print("\n   \(automation.relativePath(of: file))")
         guard let text = try? String(contentsOf: file, encoding: .utf8) else {
             print("   (can't be shown: not text)")
             continue
@@ -87,15 +90,15 @@ func show(_ automation: Automation, _ warnings: [ScriptWarning], position: Strin
 /// `deletes files (line 26: trash "${items[@]}")`, with the file's name when the automation is a folder; a long
 /// line is cut, since the review shows it in full.
 func describe(_ warning: ScriptWarning, in automation: Automation) -> String {
-    let file = automation.files.count > 1 ? "\(warning.file.lastPathComponent) " : ""
+    let file = automation.files.count > 1 ? "\(automation.relativePath(of: warning.file)) " : ""
     let text = warning.text.count > 60 ? warning.text.prefix(59) + "…" : warning.text
     guard let line = warning.line else { return "\(warning.concern) (\(file)\(text))" }
     return "\(warning.concern) (\(file)line \(line): \(text))"
 }
 
-private func approve(_ automations: [Automation], of source: String, store: CollectionStore) throws {
+private func approve(_ fingerprints: [String: String], of source: String, store: CollectionStore) throws {
     do {
-        try store.approve(automations, in: source)
+        try store.approve(fingerprints, in: source)
     } catch {
         printError("pls: \(error)")
         throw ExitCode.failure
