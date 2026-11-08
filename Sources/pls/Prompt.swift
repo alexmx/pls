@@ -19,8 +19,8 @@ enum Prompt {
         }
     }
 
-    /// Shows the plan, with what `preview` says the run would do, and asks "Run?" (Enter or y runs it). `e` edits
-    /// each value in turn, then shows both again. Returns false if the answer is no; Ctrl-D cancels.
+    /// Shows the plan, with what `preview` says the run would do, and asks "Run?", answered with one key: Enter or y
+    /// runs it, n doesn't, e edits each value in turn and shows both again. Returns false for n; Ctrl-D cancels.
     /// On yes, everything shown since the plan is replaced with one summary line where the terminal allows it.
     @MainActor
     static func review(_ binding: inout Binding, preview: (Binding) async -> [String]) async throws -> Bool {
@@ -37,20 +37,47 @@ enum Prompt {
         }
         await show(binding)
         while true {
-            // Unstyled: libedit counts escape codes in the prompt as characters, which misplaces the cursor.
             let question = "  Run?  ⏎ yes · e edit · n no "
-            let answer = ask(question)
-            record(question + (answer ?? ""))
-            switch answer?.trimmingCharacters(in: .whitespaces).lowercased() {
+            let key = waitForKey(question, among: ["\n", "y", "n", "e"])
+            // The answer as a word, so what was chosen stays on screen.
+            let word = switch key {
+            case "n": "no"
+            case "e": "edit"
+            case nil: ""
+            default: "yes"
+            }
+            printError(word)
+            record(question + word)
+            // Drops the Enter pressed out of habit after y or e, which would otherwise reach the script or keep the
+            // first value being edited. n exits, where a stray Enter only gives the shell an empty line.
+            if key == "y" || key == "e" {
+                pls_discard_enter(300)
+            }
+            switch key {
             case nil: throw Exit.cancelled
-            case "n", "no": return false
-            case "", "y", "yes":
-                replace(shown, with: summaryLine(binding, style: style))
-                return true
-            case "e", "edit":
+            case "n": return false
+            case "e":
                 try edit(&binding, record: record)
                 await show(binding)
-            default: continue
+            default:
+                replace(shown, with: summaryLine(binding, style: style))
+                return true
+            }
+        }
+    }
+
+    /// Shows `question` and waits for one of `keys` (Enter is "\n"), ignoring case and every other key. Keys typed
+    /// before the question showed are dropped, so they can't answer it. nil on Ctrl-D or end of input.
+    private static func waitForKey(_ question: String, among keys: Set<Character>) -> Character? {
+        tcflush(STDIN_FILENO, TCIFLUSH)
+        FileHandle.standardError.write(Data(question.utf8))
+        while true {
+            let byte = pls_read_key()
+            guard byte >= 0, byte != 4, let scalar = Unicode.Scalar(UInt32(byte)) else { return nil }
+            // Enter is a carriage return where the terminal doesn't turn it into a newline.
+            let key = byte == 13 ? "\n" : Character(String(scalar).lowercased())
+            if keys.contains(key) {
+                return key
             }
         }
     }

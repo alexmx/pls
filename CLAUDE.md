@@ -24,7 +24,8 @@ Workflow: main
 - `Sources/PlsCore/`: library with everything except terminal I/O, so a future GUI can reuse it
 - `Sources/pls/`: the CLI
 - `Evals/`: eval library, cases and runner for the model (`xc evals`)
-- `Sources/CEditLine/`: tiny C wrapper for libedit, which the CLI's prompts read lines through
+- `Sources/CEditLine/`: tiny C wrapper for libedit, which the CLI's prompts read lines through, and for reading the
+  single key that answers "Run?"
 - `Tests/PlsTests/`: tests for the CLI's own code (the zsh completion script; exit codes, error messages and
   terminal behaviour, run against the built `pls` through `BuiltPls`)
 - `Tests/PlsCoreTests/`: Swift Testing; every top-level suite has `@Suite(.timeLimit(.minutes(1)))` (lint-enforced)

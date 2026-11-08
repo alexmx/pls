@@ -91,7 +91,7 @@ struct PlanTests {
     @Test func yesReplacesThePlanWithTheSummary() async throws {
         let pls = try BuiltPls()
         try pls.write("careful.sh", Self.careful, executable: true)
-        let result = try await pls.runInTerminal(["run", "careful"], typing: "y\n", after: "Run?")
+        let result = try await pls.runInTerminal(["run", "careful"], typing: "y", after: "Run?")
         // Title, blank, header, a row, blank and the question.
         #expect(result.output.contains("\u{1B}[6A\r\u{1B}[J→ \u{1B}[1mCareful\u{1B}[0m  quality=80\r\nran"))
     }
@@ -99,13 +99,13 @@ struct PlanTests {
     @Test func theSummaryAlsoReplacesWhatEditingShowed() async throws {
         let pls = try BuiltPls()
         try pls.write("careful.sh", Self.careful, executable: true)
-        // Ctrl-U clears the prefilled value.
+        // e with the Enter pressed out of habit, which mustn't keep the value being edited; Ctrl-U clears it.
         let result = try await pls.runInTerminal(
             ["run", "careful"],
             answering: [
                 (after: "Run?", typing: "e\n"),
                 (after: "quality", typing: "\u{15}70\n"),
-                (after: "Run?", typing: "y\n")
+                (after: "Run?", typing: "y")
             ]
         )
         // The plan twice, with the edit question between.
@@ -115,8 +115,31 @@ struct PlanTests {
     @Test func noLeavesThePlan() async throws {
         let pls = try BuiltPls()
         try pls.write("careful.sh", Self.careful, executable: true)
-        let result = try await pls.runInTerminal(["run", "careful"], typing: "n\n", after: "Run?")
+        let result = try await pls.runInTerminal(["run", "careful"], typing: "n", after: "Run?")
         #expect(!result.output.contains("\u{1B}[J"))
+    }
+
+    @Test func otherKeysAreIgnoredAndCaseIsNot() async throws {
+        let pls = try BuiltPls()
+        try pls.write("careful.sh", Self.careful, executable: true)
+        let result = try await pls.runInTerminal(["run", "careful"], typing: "xN", after: "Run?")
+        #expect(result.status == 0)
+        #expect(result.output.contains("Run?  ⏎ yes · e edit · n no no"))
+    }
+
+    @Test func theEnterAfterYDoesntReachTheScript() async throws {
+        let pls = try BuiltPls()
+        try pls.write("reads.sh", """
+        #!/bin/zsh
+        # @pls.confirm: true
+        echo 'name?'
+        read -r name
+        echo "got:[$name]"
+        """, executable: true)
+        let result = try await pls.runInTerminal(
+            ["run", "reads"], answering: [(after: "Run?", typing: "y\n"), (after: "name?", typing: "alex\n")]
+        )
+        #expect(result.output.contains("got:[alex]"))
     }
 
     @Test(arguments: [

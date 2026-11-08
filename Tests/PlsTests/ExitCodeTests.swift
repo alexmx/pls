@@ -90,7 +90,7 @@ struct ExitCodeTests {
 
     /// No is an answer, not a failure; only backing out (Ctrl-D, Ctrl-C) is.
     @Test func answeringNoAtTheQuestionIs0() async throws {
-        #expect(try await pls.runInTerminal(["run", "careful"], typing: "n\n", after: "Run?").status == 0)
+        #expect(try await pls.runInTerminal(["run", "careful"], typing: "n", after: "Run?").status == 0)
     }
 
     @Test func ctrlDAtTheQuestionIs130() async throws {

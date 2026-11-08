@@ -43,7 +43,7 @@ struct PreviewTests {
     }
 
     @Test func thePreviewComesBeforeTheQuestion() async throws {
-        let result = try await pls.runInTerminal(["run", "marker"], typing: "n\n", after: "Run?")
+        let result = try await pls.runInTerminal(["run", "marker"], typing: "n", after: "Run?")
         #expect(result.status == 0)
         // The line editor adds terminal control codes around the question, so check the order, not the exact text.
         let preview = try #require(result.output.range(of: "Would leave a marker"))
