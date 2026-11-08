@@ -1,3 +1,4 @@
+# xc runs xcodebuild and project tasks from this file. See: https://github.com/alexmx/xc
 # xc configuration for pls: a Swift package, driven through SwiftPM.
 # Run `xc list` to see all commands.
 
