@@ -9,6 +9,8 @@ Workflow: main
 - Verify (run before every commit): `xc verify` (format check + lint + build + test)
 - Run: `xc pls -- <args>`; try it on the sample library with `PLS_HOME=examples/home xc pls -- list`
 - Fix formatting: `xc format`
+- README demo: `xc demo` re-records `assets/demo.gif` from `assets/demo.tape` (needs vhs, qrencode and Apple
+  Intelligence); re-record when what a run shows changes
 - Model evals: `xc evals` (needs Apple Intelligence, ~40s); compare with `Evals/results/baseline.txt` before changing
   prompts, schemas or the routing list, and update the baseline when a change is accepted
 

@@ -6,6 +6,7 @@ WIP.md
 # Local Claude Code permissions
 .claude/settings.local.json
 
-# History written while trying the sample library (PLS_HOME=examples/home)
+# History and jobs written while trying the sample library (PLS_HOME=examples/home)
 examples/home/history.jsonl
+examples/home/jobs/
 Evals/library/history.jsonl

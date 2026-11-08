@@ -1,69 +1,79 @@
 # pls
 
-Run your own automations from the command line, by name or in plain words.
+**Ask for your own scripts in plain words.** pls finds the automation you wrote, fills in its values with Apple's
+on-device model, and shows you the plan before anything runs.
 
-```
-$ pls "something is stuck on port 3000"
-→ Kill process on port  (kill-port)
-  Kill whatever process is listening on a TCP port
+![pls finds and runs three automations from plain-language requests](assets/demo.gif)
 
-    PARAM  VALUE  FROM
-  ● port   3000   from request
+- **Say it, don't remember it.** No more digging for a script's name, its flags or the folder it lives in.
+- **Only your code runs.** The model picks one of your automations and fills its values; it never writes commands.
+  Values it filled in are marked `●`, and nothing runs until you say yes.
+- **Private.** Apple's on-device model, offline; nothing leaves your Mac.
+- **One home for your automations:** shell scripts, AppleScript and Shortcuts, with typed params, history and
+  background jobs.
+- **Share them.** Put your automations in a GitHub repo and anyone can install them with
+  `pls collection add you/repo`. Nothing in a collection runs until they've read it and turned it on.
 
-  Run?  ⏎ yes · e edit · n no
-Killed 1 process(es) on port 3000.
-```
+## Installation
 
-pls runs automations you write yourself: shell scripts and AppleScript, which can also run Shortcuts. Each one
-declares a description, a few example requests and typed params. Ask in plain words and Apple's on-device model picks
-the automation and fills its values; pls shows the plan, with the values the model filled in marked `●`, and asks
-before running it; once you say yes, the plan shrinks to one line. Nothing leaves your Mac.
+### Homebrew
 
-## Requirements
-
-- macOS 26 or later
-- For plain-language requests: Apple Intelligence turned on. Without it, `pls "<request>"` offers the closest
-  automations by shared words instead, and everything else works the same.
-- To build: Swift 6.2 (Xcode 26)
-
-## Install
-
-```sh
+```bash
 brew install alexmx/tools/pls
 ```
 
-Or build it yourself:
+### Mise
 
-```sh
-git clone https://github.com/alexmx/pls.git
-cd pls
-swift build -c release
-sudo cp .build/release/pls /usr/local/bin/   # or any folder on your PATH
+```bash
+mise use --global github:alexmx/pls
 ```
+
+pls needs macOS 26 or later. Requests in plain words need Apple Intelligence turned on; without it, pls offers the
+closest automations by shared words instead, and everything else works the same.
 
 Tab completion for zsh: add `source <(pls completion zsh)` to `~/.zshrc`, after `compinit`.
 
-## Usage
+## Quick start
 
-```sh
-pls "make the jpgs on my desktop smaller"   # a request in plain words
-pls run compress-images ~/Pictures --quality 60
-pls again                                   # the last run, with the same values
-pls list                                    # your automations
-pls show compress-images                    # one in detail
-pls history                                 # recent runs
-pls jobs                                    # automations running in the background; pls jobs stop <id> ends one
-pls doctor                                  # check your automations, and whether the model can be used
-pls doctor --examples kill-port             # check that the model picks it for each of its examples
-pls collection add alexmx/pls-automations   # install shared automations (see Collections)
+Install the everyday automations from [pls-automations](https://github.com/alexmx/pls-automations), turn one on and
+ask for it:
+
+```bash
+pls collection add alexmx/pls-automations   # everything starts off; answer n to review them later
+pls collection enable my-ip                  # read one and turn it on
+pls "what's my ip"
 ```
 
-`--dry-run` shows what would run without running it, and `--yes` skips the question before a run.
+`pls collection review` goes through the rest. To write your own, see [Writing automations](#writing-automations),
+or [let your coding agent write them](#let-your-agent-write-them).
+
+## Usage
+
+```bash
+# Run
+pls "make the jpgs on my desktop smaller"          # a request in plain words
+pls run compress-images ~/Pictures --quality 60    # by id, with values
+pls again                                          # the last run, with the same values
+
+# Look around
+pls list                                           # your automations
+pls show compress-images                           # one in detail
+pls history                                        # recent runs
+pls jobs                                           # what's running in the background
+
+# Check
+pls doctor                                         # problems in your automations
+pls doctor --examples kill-port                    # does the model pick it for each of its examples?
+```
+
+Before a run, pls shows the plan: each value and where it came from. Answer with one key: Enter or `y` runs it, `e`
+edits the values, `n` doesn't run it. `--dry-run` shows what would run without running it, and `--yes` skips the
+question.
 
 ## Writing automations
 
-Automations live in `~/.config/pls/automations` (or `$XDG_CONFIG_HOME/pls/automations`, or
-`$PLS_HOME/automations`). A single script declares itself in a comment header; the file name is its id:
+Automations live in `~/.config/pls/automations`. A script declares itself in a comment header, and its file name is
+its id:
 
 ```zsh
 #!/bin/zsh
@@ -81,78 +91,70 @@ fi
 echo "$pids" | xargs kill && echo "Killed $(echo "$pids" | wc -l | tr -d ' ') process(es) on port $PLS_PORT."
 ```
 
-Params arrive as `$PLS_<NAME>` variables (and as arguments, in order). Types are `string`, `path`, `bool`, `int`,
-`number` and `enum`, with optional ranges, defaults and descriptions. An automation that needs files of its own is a
-folder with a `manifest.yaml` instead.
+Params arrive as `$PLS_<NAME>` variables, and as arguments in order. Their types are `string`, `path`, `bool`,
+`int`, `number` and `enum`, with optional ranges, defaults and descriptions. A few more keys:
 
-A few more keys: `@pls.confirm: true` asks before every run (or `action=delete` only for that choice),
-`@pls.background: true` runs it as a job that `pls jobs` lists, and `@pls.preview: true` lets the script say what it
-would do (it gets `PLS_PREVIEW=1`) before you're asked and with `--dry-run`. The
-[skill](skills/use-pls/SKILL.md) describes the formats in full.
+| Key | Effect |
+|---|---|
+| `@pls.confirm: true` | Ask before every run, or only for some choices: `action=delete` |
+| `@pls.background: true` | Run as a job that `pls jobs` lists and `pls jobs stop <id>` ends |
+| `@pls.preview: true` | Let the script say what it would do (it gets `PLS_PREVIEW=1`) before you're asked |
 
-[`examples/home`](examples/home/automations) has one automation in each format, including AppleScript and a Shortcut
-wrapper. Try them without touching your own library:
-
-```sh
-PLS_HOME=examples/home pls list
-PLS_HOME=examples/home pls "turn on dark mode" --dry-run
-```
+An automation that needs files of its own is a folder with a `manifest.yaml` instead. The
+[skill](skills/use-pls/SKILL.md) describes every format in full.
 
 ## Collections
 
 Install automations other people share on GitHub, and keep them up to date:
 
-```sh
-pls collection add alexmx/pls-automations             # install; everything starts off, and it asks to review
-pls collection add git@github.com:you/private-automations.git   # a private repo, over SSH with your GitHub key
-pls collection review                                  # read what's off and turn on what you trust
-pls collection update                                  # pull the latest; what changed is off until you review it
-pls collection enable wifi                             # show one and turn it on
-pls collection disable wifi                            # turn one off
-pls collection list                                    # each automation: on, off, or changed
+```bash
+pls collection add alexmx/pls-automations                        # install, then review what's in it
+pls collection add git@github.com:you/private-automations.git    # a private repo, over SSH
+pls collection review                                            # read what's off and turn on what you trust
+pls collection update                                            # pull the latest
+pls collection list                                              # each automation: on, off, or changed
+pls collection enable wifi                                       # show one and turn it on
+pls collection disable wifi                                      # turn one off
 pls collection remove alexmx/pls-automations
 ```
 
-A collection's scripts run with your full user rights, so nothing in one runs until you approve it. Adding or updating
-lists warnings for lines worth a look (deleting files, `sudo`, running downloaded code, sending data out, reading
-secrets, starting itself later, hiding what it does) and asks whether to review: you go through each automation's
-files and turn it on or leave it off, or turn them all on unread. The warnings are hints, not a security check;
-reading the script is what counts. An approval is for the files as you read them (a SHA-256 over them): when an update
-or anything else changes them, the automation is off again until you review it. So that the review shows everything
-an automation runs, pls won't load one whose files, links or entry lead outside its own folder.
+A collection's scripts run with your full user rights, so pls is careful with them:
 
-A collection is a GitHub repo with an `automations/` folder, laid out like your library; it's cloned into
-`~/.config/pls/collections/<owner>/<repo>` and loads alongside your own automations. When an id is taken, the
-collection's automation is known by its full name, `alexmx/pls-automations/wifi`; your own automations always keep
-theirs. Needs git (Xcode's command-line tools).
+- **Nothing runs until you approve it.** Adding a collection asks whether to review: you go through each
+  automation's files and turn it on or leave it off.
+- **Warnings point at lines worth a look:** deleting files, `sudo`, running downloaded code, sending data out,
+  reading secrets, starting itself later, hiding what it does. They're hints, not a security check; reading the
+  script is what counts.
+- **A change turns it off again.** An approval is for the files as you read them (a SHA-256 over them). When an update
+  changes them, the automation is off until you review it again.
+- **What you review is everything it runs.** pls won't load an automation whose files, links or entry lead outside
+  its own folder.
 
-## Let your coding agent write them
+A collection is a GitHub repo with an `automations/` folder, laid out like your library. It loads alongside your own
+automations; when an id is taken, the collection's automation goes by its full name, `alexmx/pls-automations/wifi`.
+Needs git (Xcode's command-line tools).
+
+## Let your agent write them
 
 pls ships an [Agent Skill](skills/use-pls/SKILL.md) that teaches coding agents such as Claude Code the formats, how to
 write descriptions and params the small on-device model routes and fills well, and how to check the result. Install
 it from this repository with any tool that installs skills from GitHub, or from pls itself:
 
-```sh
+```bash
 mkdir -p ~/.claude/skills/use-pls && pls skill > ~/.claude/skills/use-pls/SKILL.md
 ```
 
-Then ask your agent for an automation, e.g. "add a pls automation that opens a URL in the browser I name".
+Then ask your agent for an automation: "add a pls automation that opens a URL in the browser I name".
 
-## Settings
+## Settings and files
 
 | Variable | Effect |
 |---|---|
-| `PLS_HOME` | Keep the library and history in this folder |
+| `PLS_HOME` | Keep the library, collections and history in this folder |
 | `PLS_MODEL=off` | Don't use the model; requests match by words |
 
-History and background jobs (`jobs/`, with each job's output) are in `~/.local/state/pls/` (or
-`$XDG_STATE_HOME/pls`, or `$PLS_HOME`); collections are in `~/.config/pls/collections/`, next to your automations.
-
-## Contributing
-
-`swift build` and `swift test` work as is. The project's tasks run through [xc](https://github.com/alexmx/xc):
-`xc verify` checks formatting and lint, builds and tests (needs SwiftFormat and SwiftLint), and `xc evals` measures
-how well the model picks and fills on a fixed set of requests. [CLAUDE.md](CLAUDE.md) describes the layout.
+Your automations and collections are in `~/.config/pls/` (or `$XDG_CONFIG_HOME/pls`). History and background jobs,
+with each job's output, are in `~/.local/state/pls/` (or `$XDG_STATE_HOME/pls`).
 
 ## License
 

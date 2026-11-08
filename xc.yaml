@@ -29,6 +29,10 @@ commands:
   evals:
     run: "swift run PlsEvals"
 
+  # Record the README's demo GIF from assets/demo.tape (needs vhs, qrencode and Apple Intelligence).
+  demo:
+    run: "swift build -c release && vhs assets/demo.tape"
+
   # Run the CLI. Example: xc pls -- list
   pls:
     run: "swift run pls"
