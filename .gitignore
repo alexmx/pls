@@ -2,6 +2,7 @@
 .swiftpm/
 DerivedData/
 .DS_Store
+.vscode/
 WIP.md
 # Local Claude Code permissions
 .claude/settings.local.json
