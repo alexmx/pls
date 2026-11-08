@@ -120,7 +120,7 @@ Types, header syntax / manifest fields:
 Each param is required (asked for if missing), optional (`name: string?` / `optional: true`; may be left empty, no
 default) or has a default (`= value` / `default: value`); never both optional and defaulted. Defaults must be valid
 for the type. Names are lowercase letters, digits and `_`, starting with a letter. These names are reserved:
-`automation_dir`, `dry_run`, `help`, `home`, `id`, `model`, `preview`, `yes`.
+`automation_dir`, `dry_run`, `help`, `home`, `id`, `model`, `preview`, `version`, `yes`.
 
 ## How values reach the script
 
