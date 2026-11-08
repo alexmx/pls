@@ -28,6 +28,14 @@ func planLines(_ binding: Binding, style: Style) -> [String] {
     return heading + ["", header] + body
 }
 
+/// What's about to run on one line, in place of the plan once it's confirmed: `→ Name  port=3000`.
+func summaryLine(_ binding: Binding, style: Style) -> String {
+    let values = binding.automation.params.compactMap { param in
+        binding.values[param.name].map { "\(param.name)=\(displayValue($0.value))" }
+    }
+    return (["→ \(style.bold(binding.automation.name))"] + values).joined(separator: "  ")
+}
+
 /// The exact command and the PLS_ variables, for --dry-run.
 func invocationLines(_ invocation: Invocation) -> [String] {
     let variables = invocation.variables.sorted { $0.key < $1.key }

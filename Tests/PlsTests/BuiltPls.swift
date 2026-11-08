@@ -59,7 +59,8 @@ final class BuiltPls {
     /// Runs pls in a real terminal and types `keys` once `prompt` appears; returns the exit status and everything
     /// shown.
     /// It runs under `script`, which makes a pseudo-terminal pls's controlling terminal, as a shell's is: only then do
-    /// Ctrl-C and reading from the terminal behave as for a user.
+    /// Ctrl-C and reading from the terminal behave as for a user. The terminal is 80×24, as `script` would otherwise
+    /// leave its size unknown.
     func runInTerminal(
         _ arguments: [String], typing keys: String, after prompt: String
     ) async throws -> (status: Int32, output: String) {
@@ -73,7 +74,10 @@ final class BuiltPls {
     ) async throws -> (status: Int32, output: String) {
         let result = try await Subprocess.run(
             .path("/usr/bin/script"),
-            arguments: Arguments(["-q", "/dev/null", Self.binary.path] + arguments),
+            arguments: Arguments(
+                ["-q", "/dev/null", "/bin/sh", "-c", #"stty cols 80 rows 24 && exec "$0" "$@""#, Self.binary.path]
+                    + arguments
+            ),
             environment: environment,
             workingDirectory: FilePath(home.path),
             input: .inputWriter,

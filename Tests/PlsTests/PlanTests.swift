@@ -83,6 +83,59 @@ struct PlanTests {
         #expect(result.output.contains("Run?  ⏎ yes · e edit · n no"))
     }
 
+    @Test func aSummaryIsOneLineOfTheValues() throws {
+        #expect(try summaryLine(Self.binding(), style: Style(isOn: false))
+            == "→ Compress images  folder=~/Desktop  quality=60  format=heic")
+    }
+
+    @Test func yesReplacesThePlanWithTheSummary() async throws {
+        let pls = try BuiltPls()
+        try pls.write("careful.sh", Self.careful, executable: true)
+        let result = try await pls.runInTerminal(["run", "careful"], typing: "y\n", after: "Run?")
+        // Title, blank, header, a row, blank and the question.
+        #expect(result.output.contains("\u{1B}[6A\r\u{1B}[J→ \u{1B}[1mCareful\u{1B}[0m  quality=80\r\nran"))
+    }
+
+    @Test func theSummaryAlsoReplacesWhatEditingShowed() async throws {
+        let pls = try BuiltPls()
+        try pls.write("careful.sh", Self.careful, executable: true)
+        // Ctrl-U clears the prefilled value.
+        let result = try await pls.runInTerminal(
+            ["run", "careful"],
+            answering: [
+                (after: "Run?", typing: "e\n"),
+                (after: "quality", typing: "\u{15}70\n"),
+                (after: "Run?", typing: "y\n")
+            ]
+        )
+        // The plan twice, with the edit question between.
+        #expect(result.output.contains("\u{1B}[13A\r\u{1B}[J→ \u{1B}[1mCareful\u{1B}[0m  quality=70"))
+    }
+
+    @Test func noLeavesThePlan() async throws {
+        let pls = try BuiltPls()
+        try pls.write("careful.sh", Self.careful, executable: true)
+        let result = try await pls.runInTerminal(["run", "careful"], typing: "n\n", after: "Run?")
+        #expect(!result.output.contains("\u{1B}[J"))
+    }
+
+    @Test(arguments: [
+        (["", "abc"], 10, 2),
+        (["0123456789"], 10, 1),
+        (["0123456789a"], 10, 2),
+        (["\u{1B}[2m0123456789\u{1B}[0m"], 10, 1),
+        (["🙂🙂🙂🙂🙂"], 10, 1),
+        (["🙂🙂🙂🙂🙂🙂"], 10, 2)
+    ])
+    func rowsCountWrappedLines(lines: [String], columns: Int, rows: Int) {
+        #expect(Prompt.rows(of: lines, columns: columns) == rows)
+    }
+
+    @Test(arguments: [(["a\tb"], 80), (["\u{1B}[2Aup"], 80), (["a\rb"], 80), (["abc"], 0)])
+    func rowsAreUnknownForCursorMovesOrNoWidth(lines: [String], columns: Int) {
+        #expect(Prompt.rows(of: lines, columns: columns) == nil)
+    }
+
     @Test func colorIsOnOnlyForATerminalWithoutNoColor() throws {
         var (primary, secondary): (Int32, Int32) = (0, 0)
         try #require(openpty(&primary, &secondary, nil, nil, nil) == 0)

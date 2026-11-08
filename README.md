@@ -17,7 +17,7 @@ Killed 1 process(es) on port 3000.
 pls runs automations you write yourself: shell scripts and AppleScript, which can also run Shortcuts. Each one
 declares a description, a few example requests and typed params. Ask in plain words and Apple's on-device model picks
 the automation and fills its values; pls shows the plan, with the values the model filled in marked `●`, and asks
-before running it. Nothing leaves your Mac.
+before running it; once you say yes, the plan shrinks to one line. Nothing leaves your Mac.
 
 ## Requirements
 
