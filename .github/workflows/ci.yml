@@ -1,12 +1,11 @@
 name: CI
 
-# The push and pull request triggers stay off until the repo is public; until then this only runs when started by hand.
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
-  # pull_request:
-  #   branches: [main]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 # Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
 concurrency:

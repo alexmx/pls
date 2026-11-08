@@ -17,8 +17,7 @@ Workflow: main
 ## Releasing
 - Bump `.pls-version` on `main` and push; commit it as `fix: bump version to X.Y.Z`. `.github/workflows/release.yml`
   tags `vX.Y.Z`, publishes the arm64 binary and updates `Formula/pls.rb` in alexmx/homebrew-tools (needs the
-  `HOMEBREW_TAP_TOKEN` secret). Its push trigger, and CI's, are commented out until the repo is public; both run by
-  hand from the Actions tab meanwhile.
+  `HOMEBREW_TAP_TOKEN` secret). Both it and CI can also be started by hand from the Actions tab.
 - `pls --version` says `dev` outside a release build; the workflow writes the version into `Sources/PlsCore/Pls.swift`.
 - CI runs on the `xcode-27` runner: pls needs the macOS 27 SDK.
 

@@ -1,12 +1,11 @@
 name: Release
 
 # Releases when `.pls-version` changes on main: tags vX.Y.Z, publishes the binary and updates the Homebrew formula.
-# The push trigger stays off until the repo is public; until then this only runs when started by hand.
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
-  #   paths: ['.pls-version']
+  push:
+    branches: [main]
+    paths: ['.pls-version']
 
 permissions:
   contents: write  # Needed to create releases and tags
