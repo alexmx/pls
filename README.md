@@ -101,7 +101,8 @@ Params arrive as `$PLS_<NAME>` variables, and as arguments in order. Their types
 | `@pls.preview: true` | Let the script say what it would do (it gets `PLS_PREVIEW=1`) before you're asked |
 
 An automation that needs files of its own is a folder with a `manifest.yaml` instead. The
-[skill](skills/use-pls/SKILL.md) describes every format in full.
+[skill](skills/use-pls/SKILL.md) describes every format in full, and [`examples/home`](examples/home/automations) has
+one of each to copy from: a script, a folder with a manifest, AppleScript and a Shortcut wrapper.
 
 ## Collections
 
