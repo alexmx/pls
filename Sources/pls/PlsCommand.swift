@@ -133,6 +133,9 @@ extension Library {
     }
 }
 
+/// Where to start with an empty library, for `pls list` and `pls doctor`.
+let startHint = "install everyday ones to start with: `pls collection add alexmx/pls-automations`"
+
 /// A value among others on one line: quoted when it's empty or has spaces, newlines or tabs.
 func displayValue(_ value: String) -> String {
     value.isEmpty || value.contains(where: \.isWhitespace) || Escaping.needsEscaping(value)

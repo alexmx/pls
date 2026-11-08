@@ -29,7 +29,7 @@ struct ListCommand: ParsableCommand {
 
     private func printTable(_ library: Library) {
         guard !library.automations.isEmpty else {
-            print("No automations yet. Add scripts to \(displayPath(library.automationsDirectory)).")
+            print("No automations yet. Add scripts to \(displayPath(library.automationsDirectory)), or \(startHint)")
             return
         }
         let rows = library.automations.map { automation in

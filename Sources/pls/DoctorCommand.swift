@@ -32,6 +32,9 @@ struct DoctorCommand: AsyncParsableCommand {
         if let examplesLine {
             print("\n" + examplesLine)
         }
+        if library.automations.isEmpty {
+            print("\nNo automations yet; \(startHint)")
+        }
         await reportModel(for: library)
         if errors > 0 {
             throw ExitCode(1)
@@ -94,7 +97,9 @@ struct DoctorCommand: AsyncParsableCommand {
         do throws(NLResolver.ModelError) {
             let budget = try await NLResolver().routingBudget(for: library)
             guard budget.automations > 0 else {
-                print("\nModel: available · no automation has a description, so requests have nothing to pick from")
+                print(library.automations.isEmpty
+                    ? "\nModel: available"
+                    : "\nModel: available · no automation has a description, so requests have nothing to pick from")
                 return
             }
             let percent = budget.tokens * 100 / budget.contextSize
