@@ -131,6 +131,15 @@ struct CollectionCommandTests {
             == "alexmx/tools\n  on       wifi\n\nbob/tools\n  on       cleanup\n  on       wifi\n")
     }
 
+    /// Adding with --trust trusts it, also when it's installed already, as here.
+    @Test func addingWithTrustTrustsIt() async throws {
+        try addCleanup()
+        let added = try await pls.run("collection", "add", "bob/tools", "--trust")
+        #expect(added.status == 0)
+        #expect(added.stdout.hasSuffix("Trusted bob/tools: 2 automations on.\n"))
+        #expect(try await pls.run("collection", "list").stdout.contains("bob/tools  (trusted)\n  on       cleanup\n"))
+    }
+
     @Test func nothingToReview() async throws {
         #expect(try await pls.run("collection", "review")
             .stdout == "Nothing to review: every installed automation is approved.\n")

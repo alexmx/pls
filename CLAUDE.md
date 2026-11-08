@@ -36,7 +36,8 @@ Workflow: main
   tracks them in `<state>/jobs/`
 - Collections (`pls collection`): GitHub repos with an `automations/` folder, cloned into
   `<home>/collections/<owner>/<repo>` (`CollectionStore`), loaded after your own automations by `Library`, and only
-  what you approved: `collections.json` keeps each approval's `Fingerprint`, so a change turns it off.
+  what you approved: `collections.json` keeps each approval's `Fingerprint`, so a change turns it off, unless the
+  collection is trusted (`pls collection trust`): then updates approve what they add or change.
   `ScriptWarnings` flags lines worth reading during review. Tests use local git repos as the clone source, never the
   network
 - `examples/home/`: sample library (each automation format, plus a Shortcut wrapper); doubles as format documentation

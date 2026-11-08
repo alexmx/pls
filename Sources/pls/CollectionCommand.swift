@@ -47,6 +47,9 @@ struct CollectionCommand: ParsableCommand {
         @Argument(help: "The GitHub repo: owner/repo, or git@github.com:owner/repo.git for a private one over SSH.")
         var source: String
 
+        @Flag(help: "Trust it, like your own: turn on everything in it, and what updates add or change, unreviewed.")
+        var trust = false
+
         @MainActor
         func run() async throws {
             let address = try githubAddress(source)
@@ -63,6 +66,14 @@ struct CollectionCommand: ParsableCommand {
                 throw ExitCode.failure
             }
             let total = store.automations(of: source).count
+            if trust {
+                printWarnings(pending)
+                try failing { () throws(CollectionStore.Failure) in try store.trust(source) }
+                print(installing
+                    ? "Installed \(source), trusted: \(counted(total)) on."
+                    : "Trusted \(source): \(counted(total)) on.")
+                return
+            }
             if installing {
                 print(
                     "Installed \(source): \(counted(total)), all off. Their scripts run with your full user rights."

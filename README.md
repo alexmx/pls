@@ -111,6 +111,7 @@ Install automations other people share on GitHub, and keep them up to date:
 ```bash
 pls collection add alexmx/pls-automations                        # install, then review what's in it
 pls collection add git@github.com:you/private-automations.git    # a private repo, over SSH
+pls collection trust you/your-automations                        # your own: everything on, now and after updates
 pls collection review                                            # read what's off and turn on what you trust
 pls collection update                                            # pull the latest
 pls collection list                                              # each automation: on, off, or changed
@@ -130,6 +131,9 @@ A collection's scripts run with your full user rights, so pls is careful with th
   changes them, the automation is off until you review it again.
 - **What you review is everything it runs.** pls won't load an automation whose files, links or entry lead outside
   its own folder.
+- **Trust only what's yours.** Like trusting a Homebrew tap, `pls collection trust` (or `add --trust`) skips the
+  review: everything turns on, and so does what updates add or change, still listed with its warnings. It's for
+  your own collections or ones you know well, not a way past reading a stranger's scripts. `untrust` stops it.
 
 A collection is a GitHub repo with an `automations/` folder, laid out like your library. It loads alongside your own
 automations; when an id is taken, the collection's automation goes by its full name, `alexmx/pls-automations/wifi`.
