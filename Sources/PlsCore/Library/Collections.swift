@@ -4,7 +4,8 @@ import System
 
 /// Automations installed from GitHub repos: each repo is a shallow clone in `<home>/collections/<owner>/<repo>`, laid
 /// out like a library (an `automations/` folder), and `<home>/collections.json` records which of its automations you
-/// approved, by fingerprint. Nothing of a collection runs until approved, and a change turns it off again. Your own
+/// approved, by fingerprint. Nothing of a collection runs until approved, and a change turns it off again, unless you
+/// trust the collection: then an update approves what it adds or changes, as for a Homebrew tap you trust. Your own
 /// automations stay in `<home>/automations`.
 public struct CollectionStore: Sendable {
     /// One installed repo and what of it you approved.
@@ -13,6 +14,8 @@ public struct CollectionStore: Sendable {
         public let source: String
         /// Approved automations by id, each with the fingerprint of what you approved.
         public var approved: [String: String] = [:]
+        /// Whether updates approve what they add or change, without a review.
+        public var trusted = false
 
         public enum State: String, Sendable {
             /// Approved as it is now.
@@ -36,6 +39,7 @@ public struct CollectionStore: Sendable {
         let approved: [String: String]?
         let only: [String]?
         let disabled: [String]?
+        let trusted: Bool?
     }
 
     public struct Failure: Error, CustomStringConvertible {
@@ -89,7 +93,7 @@ public struct CollectionStore: Sendable {
         var migrated = false
         let collections = stored.map { record in
             if let approved = record.approved {
-                return Collection(source: record.source, approved: approved)
+                return Collection(source: record.source, approved: approved, trusted: record.trusted ?? false)
             }
             migrated = true
             let on = automations(of: record.source).filter { automation in
@@ -207,6 +211,13 @@ public struct CollectionStore: Sendable {
                 changes.added = idsAfter.subtracting(idsBefore).sorted()
                 changes.removed = idsBefore.subtracting(idsAfter).sorted()
                 changes.changed = Set(touched).intersection(idsBefore).intersection(idsAfter).sorted()
+                if collection.trusted {
+                    let approving = Set(changes.added + changes.changed)
+                    try approve(
+                        Self.fingerprints(of: automations(of: collection.source).filter { approving.contains($0.id) }),
+                        in: collection.source
+                    )
+                }
             }
             report.append(changes)
         }
@@ -217,6 +228,20 @@ public struct CollectionStore: Sendable {
     /// until it changes.
     public func approve(_ fingerprints: [String: String], in source: String) throws(Failure) {
         try changeRecord(of: source) { $0.approved.merge(fingerprints) { $1 } }
+    }
+
+    /// Trusts `source`: approves everything in it as it is, and from now on what updates add or change.
+    public func trust(_ source: String) throws(Failure) {
+        let all = Self.fingerprints(of: automations(of: source))
+        try changeRecord(of: source) { collection in
+            collection.trusted = true
+            collection.approved.merge(all) { $1 }
+        }
+    }
+
+    /// Stops trusting `source`. What's approved stays on; what updates add or change waits for review again.
+    public func untrust(_ source: String) throws(Failure) {
+        try changeRecord(of: source) { $0.trusted = false }
     }
 
     /// Withdraws the approval of `id` in `source`, so it doesn't load until approved again.

@@ -113,6 +113,24 @@ struct CollectionCommandTests {
             .contains("  \(state.padding(toLength: 7, withPad: " ", startingAt: 0))  cleanup\n"))
     }
 
+    /// Trusting needs no terminal: it shows the warnings and turns everything on; untrusting keeps it on.
+    @Test func trustingTurnsEverythingOnAndUntrustingKeepsIt() async throws {
+        try addCleanup()
+        let trusted = try await pls.run("collection", "trust", "bob/tools")
+        #expect(trusted.status == 0)
+        #expect(trusted.stdout == """
+        Warnings:
+          cleanup  deletes files (line 3: rm -rf ~/Library/Caches/thing)
+        Trusted bob/tools: 2 automations on, and updates turn on what they add or change.
+        
+        """)
+        #expect(try await pls.run("collection", "list").stdout
+            == "alexmx/tools\n  on       wifi\n\nbob/tools  (trusted)\n  on       cleanup\n  on       wifi\n")
+        #expect(try await pls.run("collection", "untrust", "bob/tools").status == 0)
+        #expect(try await pls.run("collection", "list").stdout
+            == "alexmx/tools\n  on       wifi\n\nbob/tools\n  on       cleanup\n  on       wifi\n")
+    }
+
     @Test func nothingToReview() async throws {
         #expect(try await pls.run("collection", "review")
             .stdout == "Nothing to review: every installed automation is approved.\n")
@@ -129,7 +147,9 @@ struct CollectionCommandTests {
         (["collection", "remove", "nobody/nothing"], 65),
         (["collection", "update", "nobody/nothing"], 65),
         (["collection", "review", "nobody/nothing"], 65),
-        (["collection", "disable", "nothing"], 65)
+        (["collection", "disable", "nothing"], 65),
+        (["collection", "trust", "nobody/nothing"], 65),
+        (["collection", "untrust", "nobody/nothing"], 65)
     ])
     func mistakesHaveTheirExitCodes(arguments: [String], status: Int) async throws {
         #expect(try await Int(pls.run(arguments).status) == status)

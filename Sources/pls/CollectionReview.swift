@@ -8,16 +8,7 @@ import PlsCore
 func review(_ pending: [Automation], of source: String, store: CollectionStore) throws {
     guard !pending.isEmpty else { return }
     let warned = pending.map { ($0, ScriptWarnings.of($0)) }
-    let flagged = warned.filter { !$0.1.isEmpty }
-    if !flagged.isEmpty {
-        print("Warnings:")
-        let width = flagged.map(\.0.id.count).max() ?? 0
-        for (automation, warnings) in flagged {
-            for warning in warnings {
-                print("  " + automation.id.padded(to: width) + "  " + describe(warning, in: automation))
-            }
-        }
-    }
+    printWarnings(warned)
     guard Prompt.isInteractive else {
         print("They stay off until approved: run `pls collection review \(source)` in a terminal.")
         return
@@ -62,6 +53,23 @@ func review(_ pending: [Automation], of source: String, store: CollectionStore) 
         let left = pending.count - approved
         print("\nTurned on \(approved) of \(pending.count)"
             + (left == 0 ? "." : "; the rest stay off until `pls collection review \(source)`."))
+    }
+}
+
+/// The warnings of `automations`, one per line under a heading; nothing when there are none.
+func printWarnings(_ automations: [Automation]) {
+    printWarnings(automations.map { ($0, ScriptWarnings.of($0)) })
+}
+
+private func printWarnings(_ warned: [(Automation, [ScriptWarning])]) {
+    let flagged = warned.filter { !$0.1.isEmpty }
+    guard !flagged.isEmpty else { return }
+    print("Warnings:")
+    let width = flagged.map(\.0.id.count).max() ?? 0
+    for (automation, warnings) in flagged {
+        for warning in warnings {
+            print("  " + automation.id.padded(to: width) + "  " + describe(warning, in: automation))
+        }
     }
 }
 

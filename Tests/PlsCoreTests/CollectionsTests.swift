@@ -43,8 +43,10 @@ struct CollectionsTests {
     }
 
     private func git(_ arguments: [String]) async throws {
-        let result = try await Subprocess.run(.name("git"), arguments: Arguments(arguments), output: .discarded)
-        #expect(result.terminationStatus.isSuccess, "git \(arguments)")
+        let result = try await Subprocess.run(
+            .name("git"), arguments: Arguments(arguments), output: .discarded, error: .string(limit: 1 << 16)
+        )
+        #expect(result.terminationStatus.isSuccess, "git \(arguments): \(result.standardError ?? "")")
     }
 
     private func automation(_ description: String) -> String {
@@ -151,6 +153,41 @@ struct CollectionsTests {
         try store.approve(CollectionStore.fingerprints(of: store.pending(of: "alexmx/tools")), in: "alexmx/tools")
         #expect(Library.load(home: home.url).automation(id: "wifi")?.description == "Wifi v2")
         #expect(try await store.update() == [CollectionStore.Changes(source: "alexmx/tools")])
+    }
+
+    /// Trusting a collection approves it as it is, and an update approves what it adds or changes, as for a Homebrew
+    /// tap you trust. What you turned off stays off until it changes.
+    @Test func aTrustedCollectionTurnsOnNowAndAfterUpdates() async throws {
+        try await publish(
+            "alexmx/tools",
+            ["automations/wifi.sh": automation("Wifi"), "automations/mute.sh": automation("Mute")]
+        )
+        try await store.add("alexmx/tools")
+        try store.trust("alexmx/tools")
+        #expect(store.installed().map(\.trusted) == [true])
+        #expect(Library.load(home: home.url).automations.map(\.id).sorted() == ["mute", "wifi"])
+        try store.revoke("mute", in: "alexmx/tools")
+        try await publish(
+            "alexmx/tools", ["automations/wifi.sh": automation("Wifi v2"), "automations/lock.sh": automation("Lock")]
+        )
+        _ = try await store.update()
+        let library = Library.load(home: home.url)
+        #expect(library.automations.map(\.id).sorted() == ["lock", "wifi"])
+        #expect(library.automation(id: "wifi")?.description == "Wifi v2")
+    }
+
+    /// Untrusting leaves on what's on; the next change waits for review again.
+    @Test func untrustingKeepsWhatsOnButReviewsTheNextChange() async throws {
+        try await publish("alexmx/tools", ["automations/wifi.sh": automation("Wifi")])
+        try await store.add("alexmx/tools")
+        try store.trust("alexmx/tools")
+        try store.untrust("alexmx/tools")
+        #expect(store.installed().map(\.trusted) == [false])
+        #expect(Library.load(home: home.url).automations.map(\.id) == ["wifi"])
+        try await publish("alexmx/tools", ["automations/wifi.sh": automation("Wifi v2")])
+        _ = try await store.update()
+        #expect(Library.load(home: home.url).automations.isEmpty)
+        #expect(store.pending(of: "alexmx/tools").map(\.id) == ["wifi"])
     }
 
     /// The fingerprint is of the files as they are, so editing the clone by hand turns an automation off too.

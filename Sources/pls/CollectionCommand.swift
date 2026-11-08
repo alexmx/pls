@@ -8,10 +8,14 @@ struct CollectionCommand: ParsableCommand {
         discussion: """
         A collection is a GitHub repo laid out like your library, with an automations folder. Nothing in it runs until \
         you approve it: installing and updating ask you to review new or changed automations, and a change to an \
-        approved one turns it off until you review it again. Its automations load alongside yours: an id that's \
-        taken is known by its full name, owner/repo/id, and your own automations keep theirs.
+        approved one turns it off until you review it again. A collection you trust, like your own, skips that: \
+        everything in it turns on, and so does what updates add or change. Its automations load alongside yours: \
+        an id that's taken is known by its full name, owner/repo/id, and your own automations keep theirs.
         """,
-        subcommands: [List.self, Add.self, Update.self, Review.self, Enable.self, Disable.self, Remove.self],
+        subcommands: [
+            List.self, Add.self, Update.self, Review.self, Enable.self, Disable.self, Trust.self, Untrust.self,
+            Remove.self
+        ],
         defaultSubcommand: List.self
     )
 
@@ -26,7 +30,7 @@ struct CollectionCommand: ParsableCommand {
                 return
             }
             for (index, collection) in collections.enumerated() {
-                print((index == 0 ? "" : "\n") + collection.source)
+                print((index == 0 ? "" : "\n") + collection.source + (collection.trusted ? "  (trusted)" : ""))
                 for automation in store.automations(of: collection.source) {
                     print("  " + collection.state(of: automation).rawValue.padded(to: 7) + "  " + automation.id)
                 }
@@ -114,9 +118,12 @@ struct CollectionCommand: ParsableCommand {
                 }
                 print("\(changes.source): " + (parts.isEmpty ? "up to date" : parts.joined(separator: "; ")))
                 // Asks about what's new or changed; what you left off before stays off quietly, for
-                // `pls collection review`.
+                // `pls collection review`. A trusted collection's update already turned them on.
                 guard let collection = store.installed().first(where: { $0.source == changes.source }) else { continue }
                 let touched = Set(changes.added + changes.changed)
+                if collection.trusted {
+                    printWarnings(store.automations(of: changes.source).filter { touched.contains($0.id) })
+                }
                 let pending = store.automations(of: changes.source).filter { automation in
                     switch collection.state(of: automation) {
                     case .on: false
@@ -201,6 +208,45 @@ struct CollectionCommand: ParsableCommand {
             let (source, automation) = try find(automation, in: store)
             try failing { () throws(CollectionStore.Failure) in try store.revoke(automation.id, in: source) }
             print("Turned off \(source)/\(automation.id).")
+        }
+    }
+
+    struct Trust: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Trust a collection: turn on everything in it, and what updates add or change, without review.",
+            discussion: """
+            Like trusting a Homebrew tap. Its scripts run with your full user rights, so trust only collections you \
+            control or know well; `pls collection untrust` stops it.
+            """
+        )
+
+        @Argument(help: "The collection, owner/repo.", completion: collections)
+        var source: String
+
+        func run() throws {
+            let store = CollectionStore()
+            try requireInstalled(source, in: store)
+            printWarnings(store.pending(of: source))
+            try failing { () throws(CollectionStore.Failure) in try store.trust(source) }
+            print(
+                "Trusted \(source): \(counted(store.automations(of: source).count)) on, and updates turn on what they add or change."
+            )
+        }
+    }
+
+    struct Untrust: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Stop trusting a collection: what's on stays on, and what's new or changed waits for review again."
+        )
+
+        @Argument(help: "The collection, owner/repo.", completion: collections)
+        var source: String
+
+        func run() throws {
+            let store = CollectionStore()
+            try requireInstalled(source, in: store)
+            try failing { () throws(CollectionStore.Failure) in try store.untrust(source) }
+            print("\(source) is no longer trusted: what's on stays on, and what's new or changed waits for review.")
         }
     }
 
