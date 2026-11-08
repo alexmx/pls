@@ -140,6 +140,22 @@ struct CollectionCommandTests {
         #expect(try await pls.run("collection", "list").stdout.contains("bob/tools  (trusted)\n  on       cleanup\n"))
     }
 
+    /// An automation that's installed but off says so, instead of looking like it doesn't exist.
+    @Test func runningOneThatsOffSaysHowToTurnItOn() async throws {
+        try addCleanup()
+        let off = try await pls.run("run", "cleanup")
+        #expect(off.status == 65)
+        #expect(off.stderr == """
+        pls: cleanup is in bob/tools, but it's off; `pls collection enable cleanup` shows it and turns it on
+        
+        """)
+        _ = try await pls.run("collection", "disable", "bob/tools/wifi")
+        #expect(try await pls.run("run", "bob/tools/wifi").stderr == """
+        pls: wifi is in bob/tools, but it's off; `pls collection enable bob/tools/wifi` shows it and turns it on
+        
+        """)
+    }
+
     @Test func nothingToReview() async throws {
         #expect(try await pls.run("collection", "review")
             .stdout == "Nothing to review: every installed automation is approved.\n")

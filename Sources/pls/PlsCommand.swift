@@ -102,12 +102,34 @@ extension Library {
                 printError("pls: several collections have \(id); use one of \(names.joined(separator: ", "))")
                 throw Exit.notFound
             }
-            printError(leftOutIDs.contains(id)
-                ? "pls: \(id) has problems that keep it from loading; run `pls doctor`"
-                : "pls: no automation with id \(id); run `pls list` to see them")
+            if leftOutIDs.contains(id) {
+                printError("pls: \(id) has problems that keep it from loading; run `pls doctor`")
+            } else if let source = Self.collectionWithOff(id) {
+                let name = id.split(separator: "/").last.map(String.init) ?? id
+                printError(
+                    "pls: \(name) is in \(source), but it's off; `pls collection enable \(id)` shows it and turns it on"
+                )
+            } else {
+                printError("pls: no automation with id \(id); run `pls list` to see them")
+            }
             throw Exit.notFound
         }
         return automation
+    }
+
+    /// The one installed collection with an automation `id` (or `owner/repo/id`) that isn't on, if there's exactly
+    /// one: it exists, it's just not approved.
+    private static func collectionWithOff(_ id: String) -> String? {
+        let store = CollectionStore()
+        let parts = id.split(separator: "/").map(String.init)
+        let short = parts.last ?? id
+        let sources = parts.count == 3 ? ["\(parts[0])/\(parts[1])"] : store.installed().map(\.source)
+        let found = store.installed().filter { collection in
+            sources.contains(collection.source) && store.automations(of: collection.source).contains {
+                $0.id == short && collection.state(of: $0) != .on
+            }
+        }
+        return found.count == 1 ? found[0].source : nil
     }
 }
 
