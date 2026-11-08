@@ -5,14 +5,18 @@ Run your own automations from the command line, by name or in plain words.
 ```
 $ pls "something is stuck on port 3000"
 → Kill process on port  (kill-port)
-    port  3000  from request
-  Run? [Y/n/e]
+
+    PARAM  VALUE  FROM
+  ● port   3000   from request
+
+  Run?  ⏎ yes · e edit · n no
 Killed 1 process(es) on port 3000.
 ```
 
 pls runs automations you write yourself: shell scripts and AppleScript, which can also run Shortcuts. Each one
 declares a description, a few example requests and typed params. Ask in plain words and Apple's on-device model picks
-the automation and fills its values; pls shows the plan and asks before running it. Nothing leaves your Mac.
+the automation and fills its values; pls shows the plan, with the values the model filled in marked `●`, and asks
+before running it. Nothing leaves your Mac.
 
 ## Requirements
 

@@ -75,7 +75,7 @@ func perform(_ binding: Binding, via trigger: HistoryEntry.Trigger, options: Run
 /// shows what's missing instead of the command it can't complete yet.
 @MainActor
 private func showDryRun(_ binding: Binding) async {
-    planLines(binding).forEach { print($0) }
+    planLines(binding, style: Style(for: STDOUT_FILENO)).forEach { print($0) }
     guard binding.missing.isEmpty else {
         print("\n  pls would ask for \(binding.missing.map(\.name).joined(separator: ", ")) first.")
         return

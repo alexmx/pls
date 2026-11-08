@@ -99,9 +99,10 @@ final class BuiltPls {
         return (result.terminationStatus.shellCode, result.closureResult)
     }
 
-    /// The test process's environment without any PLS_ settings, plus this library and the model turned off.
+    /// The test process's environment without any PLS_ settings or NO_COLOR, plus this library and the model turned
+    /// off.
     private var environment: Environment {
-        var variables = ProcessInfo.processInfo.environment.filter { !$0.key.hasPrefix("PLS_") }
+        var variables = ProcessInfo.processInfo.environment.filter { !$0.key.hasPrefix("PLS_") && $0.key != "NO_COLOR" }
         variables["PLS_HOME"] = home.path
         variables["PLS_MODEL"] = "off"
         return .exactly(variables)

@@ -9,3 +9,4 @@
 - Tried and rejected (2026-11-07): asking the model to quote the request words behind each filled value, and dropping
   values it can't point to. It removed invented values but filled real ones worse (evals: 16/21 and 12/21 right
   values against 21/21). Explicit defaults, which doctor now suggests, fix invented values instead.
+- Color in `pls list`, `pls show` and the collection review, through the `Style` helper the confirmation uses.

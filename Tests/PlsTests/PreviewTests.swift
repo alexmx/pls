@@ -47,7 +47,7 @@ struct PreviewTests {
         #expect(result.status == 130)
         // The line editor adds terminal control codes around the question, so check the order, not the exact text.
         let preview = try #require(result.output.range(of: "Would leave a marker"))
-        let question = try #require(result.output.range(of: "Run? [Y/n/e]"))
+        let question = try #require(result.output.range(of: "Run?  ⏎ yes · e edit · n no"))
         #expect(preview.upperBound < question.lowerBound)
         #expect(!ran)
     }

@@ -19,18 +19,23 @@ enum Prompt {
         }
     }
 
-    /// Shows the plan, with what `preview` says the run would do, and asks "Run? [Y/n/e]". `e` edits each value in
-    /// turn, then shows both again. Returns false if the answer is no; Ctrl-D while editing cancels.
+    /// Shows the plan, with what `preview` says the run would do, and asks "Run?" (Enter or y runs it). `e` edits
+    /// each value in turn, then shows both again. Returns false if the answer is no; Ctrl-D while editing cancels.
     @MainActor
     static func review(_ binding: inout Binding, preview: (Binding) async -> [String]) async throws -> Bool {
-        await (planLines(binding) + preview(binding)).forEach(printError)
+        let style = Style(for: STDERR_FILENO)
+        func show(_ binding: Binding) async {
+            await (planLines(binding, style: style) + preview(binding) + [""]).forEach(printError)
+        }
+        await show(binding)
         while true {
-            switch ask("  Run? [Y/n/e] ")?.trimmingCharacters(in: .whitespaces).lowercased() {
+            // Unstyled: libedit counts escape codes in the prompt as characters, which misplaces the cursor.
+            switch ask("  Run?  ⏎ yes · e edit · n no ")?.trimmingCharacters(in: .whitespaces).lowercased() {
             case nil, "n", "no": return false
             case "", "y", "yes": return true
             case "e", "edit":
                 try edit(&binding)
-                await (planLines(binding) + preview(binding)).forEach(printError)
+                await show(binding)
             default: continue
             }
         }
