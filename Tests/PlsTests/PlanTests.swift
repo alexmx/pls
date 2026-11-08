@@ -9,6 +9,7 @@ struct PlanTests {
     private static let automation = {
         let header = """
         # @pls.name: Compress images
+        # @pls.description: Make images smaller
         # @pls.param folder: path = ~/Desktop -- Where
         # @pls.param quality: int = 80 -- How good
         # @pls.param format: enum(jpg|heic) -- Which format
@@ -41,6 +42,7 @@ struct PlanTests {
     @Test func aPlanIsATableWithModelValuesMarked() throws {
         #expect(try planLines(Self.binding(), style: Style(isOn: false)) == [
             "→ Compress images  (compress)",
+            "  Make images smaller",
             "",
             "    PARAM    VALUE      FROM",
             "    folder   ~/Desktop  default",
@@ -53,9 +55,10 @@ struct PlanTests {
     @Test func colorDimsDefaultsAndHighlightsModelValues() throws {
         let lines = try planLines(Self.binding(), style: Style(isOn: true))
         #expect(lines[0] == "→ \u{1B}[1mCompress images\u{1B}[0m  \u{1B}[2m(compress)\u{1B}[0m")
-        #expect(lines[3] == "    \u{1B}[2mfolder   ~/Desktop  default\u{1B}[0m")
-        #expect(lines[4] == "    quality  60         given")
-        #expect(lines[5] == "  \u{1B}[33m● format   heic       from request\u{1B}[0m")
+        #expect(lines[1] == "  \u{1B}[2mMake images smaller\u{1B}[0m")
+        #expect(lines[4] == "    \u{1B}[2mfolder   ~/Desktop  default\u{1B}[0m")
+        #expect(lines[5] == "    quality  60         given")
+        #expect(lines[6] == "  \u{1B}[33m● format   heic       from request\u{1B}[0m")
     }
 
     @Test func anAutomationWithoutParamsShowsOnlyItsName() {

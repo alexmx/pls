@@ -38,7 +38,7 @@ struct PreviewTests {
     }
 
     @Test func aScriptWithoutPreviewIsntRunForADryRun() async throws {
-        #expect(try await !pls.run("run", "plain", "--dry-run").stdout.contains("preview"))
+        #expect(try await !pls.run("run", "plain", "--dry-run").stdout.contains("\n  preview\n"))
         #expect(!ran)
     }
 

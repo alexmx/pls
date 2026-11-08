@@ -5,6 +5,7 @@ Run your own automations from the command line, by name or in plain words.
 ```
 $ pls "something is stuck on port 3000"
 → Kill process on port  (kill-port)
+  Kill whatever process is listening on a TCP port
 
     PARAM  VALUE  FROM
   ● port   3000   from request

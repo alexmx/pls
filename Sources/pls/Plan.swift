@@ -1,11 +1,12 @@
 import PlsCore
 
-/// The automation and a table of each param's value with where it came from. Values the model read from a request
-/// are marked with `●` (and yellow), as they're the ones to check; defaults are dimmed.
+/// The automation, its description and a table of each param's value with where it came from. Values the model read
+/// from a request are marked with `●` (and yellow), as they're the ones to check; defaults are dimmed.
 func planLines(_ binding: Binding, style: Style) -> [String] {
     let automation = binding.automation
-    let title = "→ \(style.bold(automation.name))  \(style.dim("(\(automation.id))"))"
-    guard !automation.params.isEmpty else { return [title] }
+    let heading = ["→ \(style.bold(automation.name))  \(style.dim("(\(automation.id))"))"]
+        + (automation.description.map { ["  " + style.dim($0)] } ?? [])
+    guard !automation.params.isEmpty else { return heading }
     let rows = automation.params.map { param -> (cells: [String], source: BoundValue.Source?) in
         guard let bound = binding.values[param.name] else {
             return ([param.name, param.requirement == .required ? "(missing)" : "(empty)", ""], nil)
@@ -24,7 +25,7 @@ func planLines(_ binding: Binding, style: Style) -> [String] {
         default: "    " + line
         }
     }
-    return [title, "", header] + body
+    return heading + ["", header] + body
 }
 
 /// The exact command and the PLS_ variables, for --dry-run.
