@@ -19,12 +19,23 @@ struct PlanTests {
         return Automation(id: "compress", kind: .shell, source: .file(file), metadata: metadata)
     }()
 
+    /// Asks before running; for the tests that run the built pls.
+    private static let careful = """
+    #!/bin/zsh
+    # @pls.confirm: true
+    # @pls.param quality: int = 80 -- How good
+    echo ran
+    """
+
     private static func binding() throws -> Binding {
         var binding = Binding(defaultsOf: automation, request: "compress my desktop as heic")
-        let params = automation.params
-        try binding.supply("60", for: params[1], source: .given)
-        try binding.supply("heic", for: params[2], source: .request)
+        try binding.supply("60", for: param("quality"), source: .given)
+        try binding.supply("heic", for: param("format"), source: .request)
         return binding
+    }
+
+    private static func param(_ name: String) throws -> Param {
+        try #require(automation.params.first { $0.name == name })
     }
 
     @Test func aPlanIsATableWithModelValuesMarked() throws {
@@ -68,13 +79,6 @@ struct PlanTests {
         #expect(result.output.contains("    \u{1B}[2mquality  80     default\u{1B}[0m"))
         #expect(result.output.contains("Run?  ⏎ yes · e edit · n no"))
     }
-
-    private static let careful = """
-    #!/bin/zsh
-    # @pls.confirm: true
-    # @pls.param quality: int = 80 -- How good
-    echo ran
-    """
 
     @Test func colorIsOnOnlyForATerminalWithoutNoColor() throws {
         var (primary, secondary): (Int32, Int32) = (0, 0)

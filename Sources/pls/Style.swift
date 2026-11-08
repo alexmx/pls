@@ -4,15 +4,6 @@ import Foundation
 struct Style {
     let isOn: Bool
 
-    init(isOn: Bool) {
-        self.isOn = isOn
-    }
-
-    /// On when `descriptor` is a terminal and `NO_COLOR` isn't set to anything (no-color.org).
-    init(for descriptor: Int32, environment: [String: String] = ProcessInfo.processInfo.environment) {
-        self.isOn = isatty(descriptor) != 0 && (environment["NO_COLOR"] ?? "").isEmpty
-    }
-
     func bold(_ text: String) -> String {
         wrap(text, "1")
     }
@@ -26,6 +17,13 @@ struct Style {
     }
 
     private func wrap(_ text: String, _ code: String) -> String {
-        isOn && !text.isEmpty ? "\u{1B}[\(code)m\(text)\u{1B}[0m" : text
+        isOn ? "\u{1B}[\(code)m\(text)\u{1B}[0m" : text
+    }
+}
+
+extension Style {
+    /// On when `descriptor` is a terminal and `NO_COLOR` isn't set to anything (no-color.org).
+    init(for descriptor: Int32, environment: [String: String] = ProcessInfo.processInfo.environment) {
+        self.init(isOn: isatty(descriptor) != 0 && (environment["NO_COLOR"] ?? "").isEmpty)
     }
 }
