@@ -209,6 +209,10 @@ compiled `.scpt` or binaries, which can't be read. Each automation must stand on
 folder, no files outside its own folder (pls won't load one whose entry or links lead out of it), and the description
 and examples written for anyone's library, since they'll route among other people's automations.
 
+For your own collection, say to keep the same automations on several Macs, `pls collection add <owner>/<repo> --trust`
+(or `pls collection trust` later) skips the review: everything turns on, and so does what updates add or change.
+Suggest it only for collections the user controls, never to skip reading someone else's.
+
 ## Shortcuts
 
 There's no Shortcut format: wrap one in a shell script that calls `shortcuts run "<name>"`. A Shortcut takes one
