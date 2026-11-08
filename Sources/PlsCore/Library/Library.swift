@@ -34,12 +34,13 @@ public struct Library: Sendable {
     }
 
     public static func load(home: URL) -> Library {
+        let store = CollectionStore(home: home)
         var own = Loader()
-        own.loadAll(in: automationsDirectory(in: home), missing: .warning)
+        // Without a folder of your own, collections can be all there is; with neither, say where to start.
+        own.loadAll(in: automationsDirectory(in: home), missing: store.installed().isEmpty ? .warning : nil)
         var automations = own.automations
         var diagnostics = own.diagnostics
 
-        let store = CollectionStore(home: home)
         var installed: [Automation] = []
         for collection in store.installed() {
             var loader = Loader(collection: collection.source)
@@ -94,9 +95,9 @@ private struct Loader {
     /// id → where it was first defined, to report duplicates.
     var seen: [String: URL] = [:]
 
-    /// Loads every automation in `directory`. A missing folder is `missing`: normal before your first automation, a
-    /// problem for a collection's clone.
-    mutating func loadAll(in directory: URL, missing: Diagnostic.Severity) {
+    /// Loads every automation in `directory`. A missing folder is reported as `missing`, or not at all when nil: it's
+    /// normal before your first automation, but a problem for a collection's clone.
+    mutating func loadAll(in directory: URL, missing: Diagnostic.Severity?) {
         let entries: [URL]
         do {
             entries = try FileManager.default.contentsOfDirectory(
@@ -105,15 +106,22 @@ private struct Loader {
         } catch {
             // Anything but a missing folder (permissions, a file in its place) is a real problem. Either way, say so
             // rather than look like an empty library.
-            let isMissing = !FileManager.default.fileExists(atPath: directory.path)
-            diagnostics.append(isMissing
-                ? Diagnostic(
+            guard !FileManager.default.fileExists(atPath: directory.path) else {
+                diagnostics.append(Diagnostic(
+                    .error,
+                    "can't read the folder: \(error.localizedDescription)",
+                    file: directory
+                ))
+                return
+            }
+            if let missing {
+                diagnostics.append(Diagnostic(
                     missing,
                     collection.map { "the clone of \($0) is missing; run `pls collection add \($0)`" }
                         ?? "folder doesn't exist; create it and add automations there",
                     file: directory
-                )
-                : Diagnostic(.error, "can't read the folder: \(error.localizedDescription)", file: directory))
+                ))
+            }
             return
         }
         for url in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {

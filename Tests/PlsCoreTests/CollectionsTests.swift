@@ -52,15 +52,34 @@ struct CollectionsTests {
     }
 
     @Test(arguments: [
-        ("alexmx/pls-automations", "alexmx/pls-automations"),
-        ("https://github.com/alexmx/pls-automations", "alexmx/pls-automations"),
-        ("github.com/alexmx/pls-automations.git", "alexmx/pls-automations"),
-        ("https://gitlab.com/alexmx/pls-automations", nil),
-        ("pls-automations", nil),
-        ("alexmx/pls/automations", nil)
+        ("alexmx/pls-automations", "alexmx/pls-automations", false),
+        ("https://github.com/alexmx/pls-automations", "alexmx/pls-automations", false),
+        ("github.com/alexmx/pls-automations.git", "alexmx/pls-automations", false),
+        ("git@github.com:alexmx/pls-automations.git", "alexmx/pls-automations", true),
+        ("ssh://git@github.com/alexmx/pls-automations", "alexmx/pls-automations", true)
     ])
-    func sourcesComeFromGitHub(argument: String, source: String?) {
-        #expect(CollectionStore.source(from: argument) == source)
+    func addressesComeFromGitHub(argument: String, source: String, overSSH: Bool) {
+        #expect(CollectionStore.address(from: argument) == CollectionStore.Address(source: source, overSSH: overSSH))
+    }
+
+    @Test(arguments: [
+        "https://gitlab.com/alexmx/pls-automations", "git@gitlab.com:alexmx/tools.git", "pls-automations",
+        "alexmx/pls/automations"
+    ])
+    func anythingElseIsRefused(argument: String) {
+        #expect(CollectionStore.address(from: argument) == nil)
+    }
+
+    /// git runs ssh in batch mode, so a failing ssh (here one that fails at once, with no network) ends the add with a
+    /// message instead of a prompt, and leaves nothing behind.
+    @Test func aFailedSSHCloneSaysSoAndLeavesNothing() async throws {
+        let store = CollectionStore(home: home.url, ssh: "/usr/bin/false")
+        let error = await #expect(throws: CollectionStore.Failure.self) {
+            try await store.add("alexmx/private-tools", overSSH: true)
+        }
+        #expect(error?.description.hasPrefix("couldn't get alexmx/private-tools over SSH;") == true)
+        #expect(store.installed().isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: home.url.appending(path: "collections/alexmx").path))
     }
 
     @Test func addingTurnsOnEveryAutomation() async throws {
@@ -167,6 +186,17 @@ struct CollectionsTests {
         #expect(store.installed().isEmpty)
         #expect(!FileManager.default.fileExists(atPath: home.url.appending(path: "collections/alexmx").path))
         #expect(Library.load(home: home.url).automations.map(\.id) == ["mine"])
+    }
+
+    /// With a collection installed, having no automations of your own is normal.
+    @Test func noFolderOfYourOwnIsFineWithACollection() async throws {
+        try FileManager.default.removeItem(at: home.url.appending(path: "automations"))
+        #expect(!Library.load(home: home.url).diagnostics.isEmpty)
+        try await publish("alexmx/tools", ["automations/wifi.sh": automation("Wifi")])
+        try await store.add("alexmx/tools")
+        let library = Library.load(home: home.url)
+        #expect(library.diagnostics.isEmpty)
+        #expect(library.automations.map(\.id) == ["wifi"])
     }
 
     @Test func aMissingCloneIsAnError() async throws {

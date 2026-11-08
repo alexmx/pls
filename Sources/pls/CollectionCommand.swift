@@ -40,7 +40,7 @@ struct CollectionCommand: ParsableCommand {
             discussion: "Nothing in it runs while installing. Running add again changes the selection."
         )
 
-        @Argument(help: "The GitHub repo, owner/repo.")
+        @Argument(help: "The GitHub repo: owner/repo, or git@github.com:owner/repo.git for a private one over SSH.")
         var source: String
 
         @Option(help: "Turn on only these automations (comma-separated ids); otherwise all, and new ones as they come.")
@@ -48,22 +48,26 @@ struct CollectionCommand: ParsableCommand {
 
         @MainActor
         func run() async throws {
-            let source = try githubSource(source)
+            let address = try githubAddress(source)
+            let source = address.source
             let only = only.map { $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } }
             let store = CollectionStore()
             let installing = !store.installed().contains { $0.source == source }
             let ids: [String]
             do throws(CollectionStore.Failure) {
                 ids = try await Prompt.showingStatus(installing ? "Cloning \(source)…" : "Checking \(source)…") {
-                    () async throws(CollectionStore.Failure) in try await store.add(source, only: only)
+                    () async throws(CollectionStore.Failure) in
+                    try await store.add(source, overSSH: address.overSSH, only: only)
                 }
             } catch {
                 printError("pls: \(error)")
                 throw ExitCode.failure
             }
-            let on = only ?? ids
-            print("\(installing ? "Installed" : "Updated") \(source): \(on.count) of \(ids.count) automations on "
-                + "(\(on.joined(separator: ", "))).")
+            let verb = installing ? "Installed" : "Updated"
+            print(only
+                .map { "\(verb) \(source): \($0.count) of \(ids.count) automations on (\($0.joined(separator: ", ")))."
+                }
+                ?? "\(verb) \(source): all \(ids.count) automations on.")
             let problems = Library.loadDefault().diagnostics.filter {
                 $0.file?.path.hasPrefix(store.folder(of: source).path) == true
             }
@@ -169,13 +173,13 @@ private let automations = CompletionKind.custom { _, _, _ in
         .flatMap { collection in store.automationIDs(of: collection.source).map { "\(collection.source)/\($0)" } }
 }
 
-/// `owner/repo` from what was typed, or exit 64.
-private func githubSource(_ argument: String) throws -> String {
-    guard let source = CollectionStore.source(from: argument) else {
-        printError("pls: collections come from GitHub; give owner/repo")
+/// The repo and how to reach it from what was typed, or exit 64.
+private func githubAddress(_ argument: String) throws -> CollectionStore.Address {
+    guard let address = CollectionStore.address(from: argument) else {
+        printError("pls: collections come from GitHub; give owner/repo, or git@github.com:owner/repo.git over SSH")
         throw Exit.usage
     }
-    return source
+    return address
 }
 
 private func requireInstalled(_ source: String, in store: CollectionStore) throws {

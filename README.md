@@ -100,6 +100,7 @@ Install automations other people share on GitHub, and keep them up to date:
 ```sh
 pls collection add alexmx/pls-automations             # all of them
 pls collection add alexmx/pls-automations --only wifi,mute
+pls collection add git@github.com:you/private-automations.git   # a private repo, over SSH with your GitHub key
 pls collection update                                  # pull the latest; lists every automation that changed
 pls collection disable wifi                            # turn one off; it stays off across updates
 pls collection list

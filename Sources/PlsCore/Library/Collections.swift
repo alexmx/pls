@@ -31,20 +31,34 @@ public struct CollectionStore: Sendable {
         public var removed: [String] = []
     }
 
-    public let home: URL
-    /// Where repos are cloned from: GitHub, or a folder of local repos in tests.
-    let cloneBase: String
-
-    public init(home: URL = Library.defaultHome(), cloneBase: String = "https://github.com/") {
-        self.home = home
-        self.cloneBase = cloneBase.hasSuffix("/") ? cloneBase : cloneBase + "/"
+    /// A collection as typed: which repo, and whether to clone it over SSH, which reaches private repos.
+    public struct Address: Equatable, Sendable {
+        /// `owner/repo`.
+        public let source: String
+        public let overSSH: Bool
     }
 
-    /// `owner/repo` from `owner/repo` or `https://github.com/owner/repo(.git)`; nil for anything else.
-    public static func source(from argument: String) -> String? {
+    public let home: URL
+    /// Where repos are cloned from over HTTPS: GitHub, or a folder of local repos in tests.
+    let cloneBase: String
+    /// The ssh git runs for SSH addresses (tests use one that fails at once); always in batch mode, so it never asks.
+    let ssh: String
+
+    public init(home: URL = Library.defaultHome(), cloneBase: String = "https://github.com/", ssh: String = "ssh") {
+        self.home = home
+        self.cloneBase = cloneBase.hasSuffix("/") ? cloneBase : cloneBase + "/"
+        self.ssh = ssh
+    }
+
+    /// `owner/repo` or `https://github.com/owner/repo(.git)`, or for SSH `git@github.com:owner/repo(.git)` or
+    /// `ssh://git@github.com/owner/repo(.git)`; nil for anything else.
+    public static func address(from argument: String) -> Address? {
+        let overSSH = argument.firstMatch(of: /^(?:ssh:\/\/)?git@github\.com[:\/]/) != nil
         let path = argument.replacing(/^(?:https?:\/\/)?github\.com\//, with: "")
+            .replacing(/^(?:ssh:\/\/)?git@github\.com[:\/]/, with: "")
             .replacing(/\.git$/, with: "").replacing(/\/$/, with: "")
-        return path.wholeMatch(of: /[A-Za-z0-9-]+\/[A-Za-z0-9._-]+/) != nil ? path : nil
+        guard path.wholeMatch(of: /[A-Za-z0-9-]+\/[A-Za-z0-9._-]+/) != nil else { return nil }
+        return Address(source: path, overSSH: overSSH)
     }
 
     // MARK: record
@@ -79,13 +93,19 @@ public struct CollectionStore: Sendable {
     /// Clones `source` if it isn't installed yet, then records the selection: `only` those ids, or all. Returns the
     /// ids of its automations.
     @discardableResult
-    public func add(_ source: String, only: [String]? = nil) async throws(Failure) -> [String] {
+    public func add(_ source: String, overSSH: Bool = false, only: [String]? = nil) async throws(Failure) -> [String] {
         let folder = folder(of: source)
         if !FileManager.default.fileExists(atPath: folder.path) {
+            let url = overSSH ? "git@github.com:\(source).git" : "\(cloneBase)\(source).git"
             do {
-                try await git(["clone", "--depth", "1", "--quiet", "\(cloneBase)\(source).git", folder.path])
+                try await git(["clone", "--depth", "1", "--quiet", url, folder.path])
             } catch {
                 removeClone(of: source)
+                if overSSH {
+                    throw Failure(description: """
+                    couldn't get \(source) over SSH; check that your GitHub SSH key can read it (\(error.description))
+                    """)
+                }
                 // GitHub asks for a login when a repo doesn't exist, so it may not even say so.
                 let missing = [
                     "could not read Username",
@@ -206,8 +226,14 @@ public struct CollectionStore: Sendable {
         return parts.count == 2 ? (String(parts[1]) as NSString).deletingPathExtension : String(parts[1])
     }
 
+    /// ssh in batch mode: a missing key, a passphrase or an unknown host fails instead of asking. Your own
+    /// `GIT_SSH_COMMAND`, if set, is kept and gets the option added.
+    private var sshCommand: String {
+        (ProcessInfo.processInfo.environment["GIT_SSH_COMMAND"] ?? ssh) + " -o BatchMode=yes"
+    }
+
     /// Runs git and returns its output; it never stops to ask for a login (GitHub asks one for a repo that doesn't
-    /// exist).
+    /// exist) or for anything over SSH.
     @discardableResult
     private func git(_ arguments: [String]) async throws(Failure) -> String {
         let succeeded: Bool, output: String, errors: String
@@ -215,7 +241,7 @@ public struct CollectionStore: Sendable {
             let result = try await Subprocess.run(
                 .name("git"),
                 arguments: Arguments(arguments),
-                environment: .inherit.updating(["GIT_TERMINAL_PROMPT": "0"]),
+                environment: .inherit.updating(["GIT_TERMINAL_PROMPT": "0", "GIT_SSH_COMMAND": sshCommand]),
                 output: .string(limit: 1 << 20),
                 error: .string(limit: 1 << 16)
             )
