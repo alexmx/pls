@@ -85,7 +85,7 @@ struct PlanTests {
 
     @Test func aSummaryIsOneLineOfTheValues() throws {
         #expect(try summaryLine(Self.binding(), style: Style(isOn: false))
-            == "→ Compress images  folder=~/Desktop  quality=60  format=heic")
+            == "→ Compress images  (compress)  folder=~/Desktop  quality=60  format=heic")
     }
 
     @Test func yesReplacesThePlanWithTheSummary() async throws {
@@ -93,7 +93,8 @@ struct PlanTests {
         try pls.write("careful.sh", Self.careful, executable: true)
         let result = try await pls.runInTerminal(["run", "careful"], typing: "y", after: "Run?")
         // Title, blank, header, a row, blank and the question.
-        #expect(result.output.contains("\u{1B}[6A\r\u{1B}[J→ \u{1B}[1mCareful\u{1B}[0m  quality=80\r\nran"))
+        let summary = "→ \u{1B}[1mCareful\u{1B}[0m  \u{1B}[2m(careful)\u{1B}[0m  quality=80"
+        #expect(result.output.contains("\u{1B}[6A\r\u{1B}[J" + summary + "\r\nran"))
     }
 
     @Test func theSummaryAlsoReplacesWhatEditingShowed() async throws {
@@ -111,7 +112,8 @@ struct PlanTests {
             ]
         )
         // The plan twice, with the edit question between.
-        #expect(result.output.contains("\u{1B}[13A\r\u{1B}[J→ \u{1B}[1mCareful\u{1B}[0m  quality=70"))
+        let summary = "→ \u{1B}[1mCareful\u{1B}[0m  \u{1B}[2m(careful)\u{1B}[0m  quality=70"
+        #expect(result.output.contains("\u{1B}[13A\r\u{1B}[J" + summary))
     }
 
     @Test func noLeavesThePlan() async throws {

@@ -4,7 +4,7 @@ import PlsCore
 /// from a request are marked with `●` (and yellow), as they're the ones to check; defaults are dimmed.
 func planLines(_ binding: Binding, style: Style) -> [String] {
     let automation = binding.automation
-    let heading = ["→ \(style.bold(automation.name))  \(style.dim("(\(automation.id))"))"]
+    let heading = [title(automation, style: style)]
         + (automation.description.map { ["  " + style.dim($0)] } ?? [])
     guard !automation.params.isEmpty else { return heading }
     let rows = automation.params.map { param -> (cells: [String], source: BoundValue.Source?) in
@@ -28,12 +28,17 @@ func planLines(_ binding: Binding, style: Style) -> [String] {
     return heading + ["", header] + body
 }
 
-/// What's about to run on one line, in place of the plan once it's confirmed: `→ Name  port=3000`.
+/// What's about to run on one line, in place of the plan once it's confirmed: `→ Name  (id)  port=3000`.
 func summaryLine(_ binding: Binding, style: Style) -> String {
     let values = binding.automation.params.compactMap { param in
         binding.values[param.name].map { "\(param.name)=\(displayValue($0.value))" }
     }
-    return (["→ \(style.bold(binding.automation.name))"] + values).joined(separator: "  ")
+    return ([title(binding.automation, style: style)] + values).joined(separator: "  ")
+}
+
+/// `→ Name  (id)`, with the name bold and the id dimmed.
+private func title(_ automation: Automation, style: Style) -> String {
+    "→ \(style.bold(automation.name))  \(style.dim("(\(automation.id))"))"
 }
 
 /// The exact command and the PLS_ variables, for --dry-run.
