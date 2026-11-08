@@ -32,8 +32,10 @@ Workflow: main
 - Background jobs (`@pls.background`, `pls jobs`): `JobStore` starts them detached in their own process group and
   tracks them in `<state>/jobs/`
 - Collections (`pls collection`): GitHub repos with an `automations/` folder, cloned into
-  `<home>/collections/<owner>/<repo>` (`CollectionStore`), loaded after your own automations by `Library`. Tests use
-  local git repos as the clone source, never the network
+  `<home>/collections/<owner>/<repo>` (`CollectionStore`), loaded after your own automations by `Library`, and only
+  what you approved: `collections.json` keeps each approval's `Fingerprint`, so a change turns it off.
+  `ScriptWarnings` flags lines worth reading during review. Tests use local git repos as the clone source, never the
+  network
 - `examples/home/`: sample library (each automation format, plus a Shortcut wrapper); doubles as format documentation
 
 ## Conventions

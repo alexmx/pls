@@ -35,19 +35,30 @@ public struct Library: Sendable {
 
     public static func load(home: URL) -> Library {
         let store = CollectionStore(home: home)
+        let collections = store.installed()
         var own = Loader()
         // Without a folder of your own, collections can be all there is; with neither, say where to start.
-        own.loadAll(in: automationsDirectory(in: home), missing: store.installed().isEmpty ? .warning : nil)
+        own.loadAll(in: automationsDirectory(in: home), missing: collections.isEmpty ? .warning : nil)
         var automations = own.automations
         var diagnostics = own.diagnostics
 
+        // Only what you approved, as it was when you approved it, loads from a collection.
         var installed: [Automation] = []
-        for collection in store.installed() {
-            var loader = Loader(collection: collection.source)
-            loader.loadAll(in: store.folder(of: collection.source).appending(path: "automations"), missing: .error)
-            // A turned-off automation doesn't load, so its problems don't matter.
-            diagnostics += loader.diagnostics.filter { $0.automationID.map(collection.isEnabled) ?? true }
-            installed += loader.automations.filter { collection.isEnabled($0.id) }
+        for collection in collections {
+            let loaded = Self.automations(inCollection: collection.source, store: store)
+            let approved = loaded.automations.filter(collection.isApproved)
+            let approvedIDs = Set(approved.map(\.id))
+            diagnostics += loaded.diagnostics.filter { $0.automationID.map(approvedIDs.contains) ?? true }
+            for changed in loaded.automations
+                where collection.approved[changed.id] != nil && !approvedIDs.contains(changed.id) {
+                diagnostics.append(Diagnostic(
+                    .warning,
+                    "changed since you approved it, so it's off; `pls collection review \(collection.source)` shows it",
+                    file: changed.declarationURL,
+                    automation: changed.id
+                ))
+            }
+            installed += approved
         }
         // Your own automations keep their ids; a collection's keeps its short id unless your library or another
         // collection uses it too, and is then known by `owner/repo/<id>`.
@@ -70,6 +81,15 @@ public struct Library: Sendable {
             diagnostics: diagnostics,
             ambiguousIDs: ambiguous
         )
+    }
+
+    /// Every automation in a collection's clone with its short id, approved or not, and the problems loading them.
+    static func automations(
+        inCollection source: String, store: CollectionStore
+    ) -> (automations: [Automation], diagnostics: [Diagnostic]) {
+        var loader = Loader(collection: source)
+        loader.loadAll(in: store.folder(of: source).appending(path: "automations"), missing: .error)
+        return (loader.automations, loader.diagnostics)
     }
 
     /// An automation's id: its file's name without the extension, or its folder's name.

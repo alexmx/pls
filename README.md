@@ -98,20 +98,27 @@ PLS_HOME=examples/home pls "turn on dark mode" --dry-run
 Install automations other people share on GitHub, and keep them up to date:
 
 ```sh
-pls collection add alexmx/pls-automations             # all of them
-pls collection add alexmx/pls-automations --only wifi,mute
+pls collection add alexmx/pls-automations             # install; everything starts off, and it asks to review
 pls collection add git@github.com:you/private-automations.git   # a private repo, over SSH with your GitHub key
-pls collection update                                  # pull the latest; lists every automation that changed
-pls collection disable wifi                            # turn one off; it stays off across updates
-pls collection list
+pls collection review                                  # read what's off and turn on what you trust
+pls collection update                                  # pull the latest; what changed is off until you review it
+pls collection enable wifi                             # show one and turn it on
+pls collection disable wifi                            # turn one off
+pls collection list                                    # each automation: on, off, or changed
 pls collection remove alexmx/pls-automations
 ```
+
+A collection's scripts run with your full user rights, so nothing in one runs until you approve it. Adding or updating
+lists warnings for lines worth a look (deleting files, `sudo`, running downloaded code, sending data out, reading
+secrets, starting itself later, hiding what it does) and asks whether to review: you go through each automation's
+files and turn it on or leave it off, or turn them all on unread. The warnings are hints, not a security check;
+reading the script is what counts. An approval is for the files as you read them (a SHA-256 over them): when an update
+or anything else changes them, the automation is off again until you review it.
 
 A collection is a GitHub repo with an `automations/` folder, laid out like your library; it's cloned into
 `~/.config/pls/collections/<owner>/<repo>` and loads alongside your own automations. When an id is taken, the
 collection's automation is known by its full name, `alexmx/pls-automations/wifi`; your own automations always keep
-theirs. Installing never runs anything, but an update changes scripts that will run, so read what it lists. Needs git
-(Xcode's command-line tools).
+theirs. Needs git (Xcode's command-line tools).
 
 ## Let your coding agent write them
 

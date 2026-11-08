@@ -3,20 +3,29 @@ import Subprocess
 import System
 
 /// Automations installed from GitHub repos: each repo is a shallow clone in `<home>/collections/<owner>/<repo>`, laid
-/// out like a library (an `automations/` folder), and `<home>/collections.json` records which of its automations are
-/// turned on. Your own automations stay in `<home>/automations`.
+/// out like a library (an `automations/` folder), and `<home>/collections.json` records which of its automations you
+/// approved, by fingerprint. Nothing of a collection runs until approved, and a change turns it off again. Your own
+/// automations stay in `<home>/automations`.
 public struct CollectionStore: Sendable {
-    /// One installed repo and which of its automations load.
+    /// One installed repo and what of it you approved.
     public struct Collection: Codable, Equatable, Sendable {
         /// `owner/repo`.
         public let source: String
-        /// Only these ids load, when set (`--only`); otherwise all but `disabled`.
-        public var only: [String]?
-        public var disabled: [String] = []
+        /// Approved automations by id, each with the fingerprint of what you approved.
+        public var approved: [String: String] = [:]
 
-        public func isEnabled(_ id: String) -> Bool {
-            only.map { $0.contains(id) } ?? !disabled.contains(id)
+        /// Whether `automation`, loaded with its short id, is approved as it is now.
+        public func isApproved(_ automation: Automation) -> Bool {
+            approved[automation.id] == Fingerprint.of(automation)
         }
+    }
+
+    /// A record as older versions wrote it too: `only` or `disabled` instead of approvals.
+    private struct StoredCollection: Decodable {
+        let source: String
+        let approved: [String: String]?
+        let only: [String]?
+        let disabled: [String]?
     }
 
     public struct Failure: Error, CustomStringConvertible {
@@ -64,8 +73,39 @@ public struct CollectionStore: Sendable {
     // MARK: record
 
     public func installed() -> [Collection] {
-        guard let data = try? Data(contentsOf: recordFile) else { return [] }
-        return ((try? JSONDecoder().decode([Collection].self, from: data)) ?? []).sorted { $0.source < $1.source }
+        guard let data = try? Data(contentsOf: recordFile),
+              let stored = try? JSONDecoder().decode([StoredCollection].self, from: data) else { return [] }
+        // An older record said which ids were on; what's on now counts as approved, so nothing changes for you.
+        var migrated = false
+        let collections = stored.map { record in
+            if let approved = record.approved {
+                return Collection(source: record.source, approved: approved)
+            }
+            migrated = true
+            let on = automations(of: record.source).filter { automation in
+                record.only.map { $0.contains(automation.id) } ?? !(record.disabled ?? []).contains(automation.id)
+            }
+            return Collection(source: record.source, approved: approvals(of: on))
+        }
+        if migrated {
+            try? save(collections)
+        }
+        return collections.sorted { $0.source < $1.source }
+    }
+
+    /// Every automation in `source`'s clone, approved or not, by short id.
+    public func automations(of source: String) -> [Automation] {
+        Library.automations(inCollection: source, store: self).automations
+    }
+
+    /// `source`'s automations that aren't approved as they are now: new, or changed since you approved them.
+    public func pending(of source: String) -> [Automation] {
+        guard let collection = installed().first(where: { $0.source == source }) else { return [] }
+        return automations(of: source).filter { !collection.isApproved($0) }
+    }
+
+    private func approvals(of automations: [Automation]) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: automations.map { ($0.id, Fingerprint.of($0)) })
     }
 
     /// The clone of `source`.
@@ -90,10 +130,9 @@ public struct CollectionStore: Sendable {
 
     // MARK: changes
 
-    /// Clones `source` if it isn't installed yet, then records the selection: `only` those ids, or all. Returns the
-    /// ids of its automations.
+    /// Clones `source` if it isn't installed yet, with nothing approved, and returns what's waiting for review.
     @discardableResult
-    public func add(_ source: String, overSSH: Bool = false, only: [String]? = nil) async throws(Failure) -> [String] {
+    public func add(_ source: String, overSSH: Bool = false) async throws(Failure) -> [Automation] {
         let folder = folder(of: source)
         if !FileManager.default.fileExists(atPath: folder.path) {
             let url = overSSH ? "git@github.com:\(source).git" : "\(cloneBase)\(source).git"
@@ -122,13 +161,12 @@ public struct CollectionStore: Sendable {
             removeClone(of: source)
             throw Failure(description: "\(source) has no automations folder with automations in it")
         }
-        if let unknown = only?.first(where: { !ids.contains($0) }) {
-            throw Failure(description: "\(source) has no automation \(unknown); it has \(ids.joined(separator: ", "))")
+        var collections = installed()
+        if !collections.contains(where: { $0.source == source }) {
+            collections.append(Collection(source: source))
+            try save(collections)
         }
-        var collections = installed().filter { $0.source != source }
-        collections.append(Collection(source: source, only: only))
-        try save(collections)
-        return ids
+        return pending(of: source)
     }
 
     /// Pulls each collection (all when `sources` is empty) and reports what changed among its automations.
@@ -163,26 +201,22 @@ public struct CollectionStore: Sendable {
         return report
     }
 
-    /// Turns `id` of `source` on or off, keeping the choice across updates.
-    public func setEnabled(_ enabled: Bool, id: String, in source: String) throws(Failure) {
+    /// Approves `automations` of `source` as they are now, so they load until they change.
+    public func approve(_ automations: [Automation], in source: String) throws(Failure) {
+        try changeRecord(of: source) { $0.approved.merge(approvals(of: automations)) { $1 } }
+    }
+
+    /// Withdraws the approval of `id` in `source`, so it doesn't load until approved again.
+    public func revoke(_ id: String, in source: String) throws(Failure) {
+        try changeRecord(of: source) { $0.approved[id] = nil }
+    }
+
+    private func changeRecord(of source: String, _ change: (inout Collection) -> Void) throws(Failure) {
         var collections = installed()
         guard let index = collections.firstIndex(where: { $0.source == source }) else {
             throw Failure(description: "no collection \(source) is installed")
         }
-        guard Self.ids(in: folder(of: source)).contains(id) else {
-            throw Failure(description: "\(source) has no automation \(id)")
-        }
-        var collection = collections[index]
-        if var only = collection.only {
-            only.removeAll { $0 == id }
-            collection.only = enabled ? only + [id] : only
-        } else {
-            collection.disabled.removeAll { $0 == id }
-            if !enabled {
-                collection.disabled.append(id)
-            }
-        }
-        collections[index] = collection
+        change(&collections[index])
         try save(collections)
     }
 

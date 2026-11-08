@@ -82,28 +82,34 @@ struct CollectionsTests {
         #expect(!FileManager.default.fileExists(atPath: home.url.appending(path: "collections/alexmx").path))
     }
 
-    @Test func addingTurnsOnEveryAutomation() async throws {
-        try await publish(
-            "alexmx/tools",
-            ["automations/wifi.sh": automation("Wifi"), "automations/mute.sh": automation("Mute")]
-        )
-        #expect(try await store.add("alexmx/tools") == ["mute", "wifi"])
-        let library = Library.load(home: home.url)
-        #expect(library.automations.map(\.id) == ["mute", "wifi"])
-        #expect(library.automations.allSatisfy { $0.collection == "alexmx/tools" })
-        #expect(library.automation(id: "alexmx/tools/wifi")?.id == "wifi")
+    /// Adds `source` and approves everything in it, as answering "a" at the review does.
+    private func addApproved(_ source: String) async throws {
+        try await store.add(source)
+        try store.approve(store.automations(of: source), in: source)
     }
 
-    @Test func onlyTurnsOnTheGivenAutomations() async throws {
+    @Test func addingLeavesEverythingOff() async throws {
         try await publish(
             "alexmx/tools",
             ["automations/wifi.sh": automation("Wifi"), "automations/mute.sh": automation("Mute")]
         )
-        try await store.add("alexmx/tools", only: ["wifi"])
-        #expect(Library.load(home: home.url).automations.map(\.id) == ["wifi"])
-        // Adding again changes the selection.
-        try await store.add("alexmx/tools")
-        #expect(Library.load(home: home.url).automations.map(\.id) == ["mute", "wifi"])
+        #expect(try await store.add("alexmx/tools").map(\.id) == ["mute", "wifi"])
+        #expect(Library.load(home: home.url).automations.isEmpty)
+        #expect(store.pending(of: "alexmx/tools").map(\.id) == ["mute", "wifi"])
+    }
+
+    @Test func approvingTurnsOnExactlyThat() async throws {
+        try await publish(
+            "alexmx/tools",
+            ["automations/wifi.sh": automation("Wifi"), "automations/mute.sh": automation("Mute")]
+        )
+        let pending = try await store.add("alexmx/tools")
+        try store.approve(pending.filter { $0.id == "wifi" }, in: "alexmx/tools")
+        let library = Library.load(home: home.url)
+        #expect(library.automations.map(\.id) == ["wifi"])
+        #expect(library.automations.allSatisfy { $0.collection == "alexmx/tools" })
+        #expect(library.automation(id: "alexmx/tools/wifi")?.id == "wifi")
+        #expect(store.pending(of: "alexmx/tools").map(\.id) == ["mute"])
     }
 
     @Test func aRepoWithoutAutomationsIsntInstalled() async throws {
@@ -119,13 +125,13 @@ struct CollectionsTests {
         #expect(!FileManager.default.fileExists(atPath: home.url.appending(path: "collections/alexmx").path))
     }
 
-    @Test func updateReportsChangesAndKeepsTurnedOffAutomationsOff() async throws {
+    /// An update that changes an approved automation turns it off until it's approved again; new ones wait too.
+    @Test func anUpdateTurnsOffWhatChangedUntilApprovedAgain() async throws {
         try await publish(
             "alexmx/tools",
             ["automations/wifi.sh": automation("Wifi"), "automations/mute.sh": automation("Mute")]
         )
-        try await store.add("alexmx/tools")
-        try store.setEnabled(false, id: "mute", in: "alexmx/tools")
+        try await addApproved("alexmx/tools")
         try await publish(
             "alexmx/tools", ["automations/wifi.sh": automation("Wifi v2"), "automations/lock.sh": automation("Lock")],
             removing: ["automations/mute.sh"]
@@ -138,28 +144,52 @@ struct CollectionsTests {
             removed: ["mute"]
         )])
         let library = Library.load(home: home.url)
-        #expect(library.automations.map(\.id) == ["lock", "wifi"])
-        #expect(library.automation(id: "wifi")?.description == "Wifi v2")
+        #expect(library.automations.isEmpty)
+        #expect(library.diagnostics.map(\.message)
+            == ["changed since you approved it, so it's off; `pls collection review alexmx/tools` shows it"])
+        #expect(store.pending(of: "alexmx/tools").map(\.id) == ["lock", "wifi"])
+        try store.approve(store.pending(of: "alexmx/tools"), in: "alexmx/tools")
+        #expect(Library.load(home: home.url).automation(id: "wifi")?.description == "Wifi v2")
         #expect(try await store.update() == [CollectionStore.Changes(source: "alexmx/tools")])
     }
 
-    @Test func disabledStaysOffAndEnableTurnsItBackOn() async throws {
+    /// The fingerprint is of the files as they are, so editing the clone by hand turns an automation off too.
+    @Test func editingTheCloneTurnsAnAutomationOff() async throws {
+        try await publish("alexmx/tools", ["automations/wifi.sh": automation("Wifi")])
+        try await addApproved("alexmx/tools")
+        let file = store.folder(of: "alexmx/tools").appending(path: "automations/wifi.sh")
+        try (automation("Wifi") + "rm -rf ~\n").write(to: file, atomically: true, encoding: .utf8)
+        #expect(Library.load(home: home.url).automations.isEmpty)
+    }
+
+    @Test func revokingTurnsItOff() async throws {
+        try await publish(
+            "alexmx/tools",
+            ["automations/wifi.sh": automation("Wifi"), "automations/mute.sh": automation("Mute")]
+        )
+        try await addApproved("alexmx/tools")
+        try store.revoke("mute", in: "alexmx/tools")
+        #expect(Library.load(home: home.url).automations.map(\.id) == ["wifi"])
+    }
+
+    /// Records from before approvals said which ids were on; those count as approved, so nothing changes.
+    @Test func anOlderRecordKeepsWhatWasOn() async throws {
         try await publish(
             "alexmx/tools",
             ["automations/wifi.sh": automation("Wifi"), "automations/mute.sh": automation("Mute")]
         )
         try await store.add("alexmx/tools")
-        try store.setEnabled(false, id: "mute", in: "alexmx/tools")
+        try #"[{"disabled": ["mute"], "source": "alexmx/tools"}]"#
+            .write(to: home.url.appending(path: "collections.json"), atomically: true, encoding: .utf8)
         #expect(Library.load(home: home.url).automations.map(\.id) == ["wifi"])
-        try store.setEnabled(true, id: "mute", in: "alexmx/tools")
-        #expect(Library.load(home: home.url).automations.map(\.id) == ["mute", "wifi"])
+        #expect(store.installed().first?.approved.keys.sorted() == ["wifi"])
     }
 
     /// Your own automation keeps the short id; the collection's is still there by its full name.
     @Test func yourOwnAutomationWinsTheShortID() async throws {
         try home.write("wifi.sh", automation("My wifi"))
         try await publish("alexmx/tools", ["automations/wifi.sh": automation("Their wifi")])
-        try await store.add("alexmx/tools")
+        try await addApproved("alexmx/tools")
         let library = Library.load(home: home.url)
         #expect(library.automation(id: "wifi")?.description == "My wifi")
         #expect(library.automation(id: "alexmx/tools/wifi")?.description == "Their wifi")
@@ -170,8 +200,8 @@ struct CollectionsTests {
     @Test func anIDTwoCollectionsShareNeedsTheFullName() async throws {
         try await publish("alexmx/tools", ["automations/wifi.sh": automation("Alex wifi")])
         try await publish("bob/tools", ["automations/wifi.sh": automation("Bob wifi")])
-        try await store.add("alexmx/tools")
-        try await store.add("bob/tools")
+        try await addApproved("alexmx/tools")
+        try await addApproved("bob/tools")
         let library = Library.load(home: home.url)
         #expect(library.automation(id: "wifi") == nil)
         #expect(library.ambiguousIDs == ["wifi": ["alexmx/tools/wifi", "bob/tools/wifi"]])
@@ -181,7 +211,7 @@ struct CollectionsTests {
     @Test func removeLeavesTheLibraryAsItWas() async throws {
         try home.write("mine.sh", automation("Mine"))
         try await publish("alexmx/tools", ["automations/wifi.sh": automation("Wifi")])
-        try await store.add("alexmx/tools")
+        try await addApproved("alexmx/tools")
         try store.remove("alexmx/tools")
         #expect(store.installed().isEmpty)
         #expect(!FileManager.default.fileExists(atPath: home.url.appending(path: "collections/alexmx").path))
@@ -193,7 +223,7 @@ struct CollectionsTests {
         try FileManager.default.removeItem(at: home.url.appending(path: "automations"))
         #expect(!Library.load(home: home.url).diagnostics.isEmpty)
         try await publish("alexmx/tools", ["automations/wifi.sh": automation("Wifi")])
-        try await store.add("alexmx/tools")
+        try await addApproved("alexmx/tools")
         let library = Library.load(home: home.url)
         #expect(library.diagnostics.isEmpty)
         #expect(library.automations.map(\.id) == ["wifi"])
@@ -201,7 +231,7 @@ struct CollectionsTests {
 
     @Test func aMissingCloneIsAnError() async throws {
         try await publish("alexmx/tools", ["automations/wifi.sh": automation("Wifi")])
-        try await store.add("alexmx/tools")
+        try await addApproved("alexmx/tools")
         try FileManager.default.removeItem(at: store.folder(of: "alexmx/tools"))
         let problems = Library.load(home: home.url).diagnostics
         #expect(problems

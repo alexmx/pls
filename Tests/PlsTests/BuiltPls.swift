@@ -63,6 +63,14 @@ final class BuiltPls {
     func runInTerminal(
         _ arguments: [String], typing keys: String, after prompt: String
     ) async throws -> (status: Int32, output: String) {
+        try await runInTerminal(arguments, answering: [(after: prompt, typing: keys)])
+    }
+
+    /// Like `runInTerminal(_:typing:after:)` for several questions in turn: each answer is typed once its prompt
+    /// appears after the previous answer's.
+    func runInTerminal(
+        _ arguments: [String], answering answers: [(after: String, typing: String)]
+    ) async throws -> (status: Int32, output: String) {
         let result = try await Subprocess.run(
             .path("/usr/bin/script"),
             arguments: Arguments(["-q", "/dev/null", Self.binary.path] + arguments),
@@ -74,12 +82,16 @@ final class BuiltPls {
         ) { execution in
             // Input stays open until pls ends: closing it would type Ctrl-D into the terminal.
             var shown = ""
-            var typed = false
+            var answered = 0
+            var searchedTo = 0 // in UTF-8 bytes: indices don't survive appending
             for try await chunk in execution.standardOutput {
                 shown += chunk.withUnsafeBytes { String(decoding: $0, as: UTF8.self) }
-                if !typed, shown.contains(prompt) {
-                    _ = try await execution.standardInputWriter.write(Array(keys.utf8))
-                    typed = true
+                while answered < answers.count,
+                      let found = shown[shown.utf8.index(shown.startIndex, offsetBy: searchedTo)...]
+                          .range(of: answers[answered].after) {
+                    _ = try await execution.standardInputWriter.write(Array(answers[answered].typing.utf8))
+                    searchedTo = shown.utf8.distance(from: shown.startIndex, to: found.upperBound)
+                    answered += 1
                 }
             }
             return shown

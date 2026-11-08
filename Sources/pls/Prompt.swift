@@ -107,7 +107,7 @@ enum Prompt {
     }
 
     /// The line as typed, untrimmed; nil on end of input (Ctrl-D on an empty line).
-    private static func ask(_ question: String, prefill: String? = nil) -> String? {
+    static func ask(_ question: String, prefill: String? = nil) -> String? {
         guard let line = pls_read_line(question, prefill) else { return nil }
         defer { free(line) }
         return String(cString: line)

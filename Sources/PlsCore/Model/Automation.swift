@@ -90,6 +90,14 @@ public struct Automation: Sendable, Equatable {
         return copy
     }
 
+    /// Every file it's made of, sorted: its file, or each file in its folder (a symlink counts as a file).
+    public var files: [URL] {
+        guard case let .folder(folder, _) = source else { return [sourceURL] }
+        let found = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil)?.allObjects as? [URL]
+        return (found ?? []).filter { !Library.isDirectory($0) || Fingerprint.isSymlink($0) }
+            .sorted { $0.path < $1.path }
+    }
+
     /// The file or folder the automation was loaded from.
     public var sourceURL: URL {
         switch source {
