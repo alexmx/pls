@@ -15,7 +15,8 @@ struct RunOptionsTests {
     }
 
     /// A param named after a flag of `pls run` could never be given on the command line: `--version` would print
-    /// pls's version. ArgumentParser adds `--version` to every command when the root has one, without listing it.
+    /// pls's version. ArgumentParser adds `--version` to every command when the root has one; it's added here too so
+    /// the test doesn't depend on the help listing it.
     @Test func everyFlagOfRunIsAReservedParamName() {
         let help = RunCommand.helpMessage()
         let flags = help.matches(of: /(?m)^ +(?:-[a-z], )?--([a-z-]+)/).map { String($0.1) } + ["version"]
