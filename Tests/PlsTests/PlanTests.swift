@@ -99,12 +99,14 @@ struct PlanTests {
     @Test func theSummaryAlsoReplacesWhatEditingShowed() async throws {
         let pls = try BuiltPls()
         try pls.write("careful.sh", Self.careful, executable: true)
-        // e with the Enter pressed out of habit, which mustn't keep the value being edited; Ctrl-U clears it.
+        // e with the Enter pressed out of habit, which mustn't keep the value being edited. Ctrl-A Ctrl-K clear the
+        // prefilled 80: libedit takes the keys a moment after it shows the line, and unlike Ctrl-U, the terminal
+        // doesn't act on these itself meanwhile.
         let result = try await pls.runInTerminal(
             ["run", "careful"],
             answering: [
                 (after: "Run?", typing: "e\n"),
-                (after: "quality", typing: "\u{15}70\n"),
+                (after: "[int]: 80", typing: "\u{01}\u{0B}70\n"),
                 (after: "Run?", typing: "y")
             ]
         )
